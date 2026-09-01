@@ -1049,7 +1049,7 @@
            1. GERÇEK OYUN VERİLERİ (players/*.png ve weapons/*.png)
         ════════════════════════════════════════════════════════════════ */
         
-        const normalizeShopPrice = (value) => Math.max(25, Math.round(Number(value || 0) * 0.28));
+        const normalizeShopPrice = (value) => Math.max(120, Math.round(Number(value || 0) * 1.6));
 
         // Oyun içi Karakter Derileri
         const REAL_SKINS = [
@@ -1720,7 +1720,7 @@
 
                 const actionDiv = document.createElement('div');
                 actionDiv.className = 'mt-1.5 w-full';
-                actionDiv.innerHTML = `<button onclick="event.stopPropagation(); buyShopItem('${item.id}', '${_shopTab}', ${item.cost})" class="btn-3d btn-red w-full py-0.5 font-io text-[9px] stroke-text">${item.cost} <span class="gold-token">🪙</span></button>`;
+                actionDiv.innerHTML = `<button onclick="event.stopPropagation(); buyShopItem('${item.id}', '${_shopTab}', ${item.cost})" class="btn-3d btn-red w-full py-0.5 font-io text-[9px] stroke-text">${item.cost} <i class="fa-solid fa-coins text-yellow-300"></i></button>`;
                 card.appendChild(actionDiv);
 
                 grid.appendChild(card);
@@ -1753,9 +1753,9 @@
                 btn.className = 'btn-3d btn-play w-full py-1.5 font-io text-xs stroke-text';
                 btn.onclick = () => equipCosmeticItem(item.id, cat);
             } else {
-                statusEl.textContent = `COST: ${item.cost} 🪙`;
+                statusEl.innerHTML = `COST: ${item.cost} <i class="fa-solid fa-coins text-yellow-400"></i>`;
                 statusEl.className = 'text-[10px] font-black text-red-400 block mb-1';
-                btn.textContent = `SATIN AL (${item.cost} 🪙)`;
+                btn.innerHTML = `SATIN AL (${item.cost} <i class="fa-solid fa-coins text-yellow-300"></i>)`;
                 btn.className = 'btn-3d btn-red w-full py-1.5 font-io text-xs stroke-text';
                 btn.onclick = () => buyShopItem(item.id, cat, item.cost);
             }
