@@ -1,0 +1,158 @@
+{
+  "name": "ForestBrawl.io",
+  "short_name": "ForestBrawl",
+  "start_url": "./play.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#2a7a1a",
+  "theme_color": "#2a7a1a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "generatedAt": "2026-08-27T18:54:10.252Z",
+  "format": "PNG",
+  "categories": [
+    "resources"
+  ],
+  "assets": [
+    {
+      "name": "asset/tree-forest.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/tree-snow.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/tree-desert.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/tree-swamp.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/tree-darkforest.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/rock-forest.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/rock-snow.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/rock-desert.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/rock-swamp.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/rock-darkforest.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/rock.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/gold.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/apple.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/bush.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/mushroom.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/crystal.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    },
+    {
+      "name": "asset/hive.png",
+      "category": "resource",
+      "width": 256,
+      "height": 256,
+      "pivotX": 128,
+      "pivotY": 128
+    }
+  ]
+}

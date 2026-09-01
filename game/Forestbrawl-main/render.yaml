@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: forestbrawl
+    runtime: node
+    region: frankfurt
+    plan: free
+    dir: .
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true

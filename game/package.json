@@ -1,0 +1,14 @@
+{
+  "name": "forestbrawl-host",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node ./Forestbrawl-main/server.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

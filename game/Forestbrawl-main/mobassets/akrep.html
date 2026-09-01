@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Akrep PNG Animasyon ve Joystick Motoru</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2b3a20;
+            overflow: hidden;
+            touch-action: none; /* Mobilde ekranın kaymasını engeller */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            background: radial-gradient(circle at center, #3a4d2e 0%, #2b3a20 100%);
+        }
+        
+        /* --- MOBİL JOYSTICK VE BUTON TASARIMLARI --- */
+        .joystick-zone {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+        .joystick-zone.active { opacity: 1; }
+        .joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            position: absolute;
+            transition: transform 0.05s linear;
+        }
+        .attack-btn {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            width: 90px;
+            height: 90px;
+            background: #dc2626;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            border: 4px solid #f87171;
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .attack-btn:active {
+            transform: scale(0.95);
+            background: #b91c1c;
+        }
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #10b981;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="info-panel">
+        <h3 style="margin:0 0 5px 0; color: #10b981;">PNG Akrep Motoru</h3>
+        <p style="margin:0; font-size: 12px; color: #ccc;">Hareket: WASD veya Sol Joystick</p>
+        <p style="margin:5px 0 0 0; font-size: 12px; color: #ccc;">Saldırı: Boşluk (Space) veya Sağ Buton</p>
+    </div>
+
+    <!-- Mobil Kontroller -->
+    <div id="joystickZone" class="joystick-zone">
+        <div id="joystickKnob" class="joystick-knob"></div>
+    </div>
+    <div id="attackBtn" class="attack-btn">SALDIR</div>
+
+    <!-- Oyun Ekranı -->
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // ==========================================
+        // 1. PNG ASSETLERİNİ YÜKLE
+        // ==========================================
+        const assets = {
+            govde: new Image(),
+            kafa: new Image(),
+            bacak: new Image(),
+            kuyruk: new Image(),
+            igne: new Image(),
+            kol_ust: new Image(),
+            kol_alt: new Image(),
+            kiskac_dis: new Image(),
+            kiskac_ic: new Image()
+        };
+
+        // NOT: Resim isimleri önceki asset çıkarıcıdan indirdiğiniz isimlerle aynı olmalıdır.
+        assets.govde.src = 'akrep_govde.png';
+        assets.kafa.src = 'akrep_kafa.png';
+        assets.bacak.src = 'akrep_bacak.png';
+        assets.kuyruk.src = 'akrep_kuyruk.png';
+        assets.igne.src = 'akrep_igne.png';
+        assets.kol_ust.src = 'akrep_kol_ust.png';
+        assets.kol_alt.src = 'akrep_kol_alt.png';
+        assets.kiskac_dis.src = 'akrep_kiskac_dis.png';
+        assets.kiskac_ic.src = 'akrep_kiskac_ic.png';
+
+        // ==========================================
+        // 2. SPRITESHEET ANİMASYON SINIFI
+        // ==========================================
+        class SpriteScorpion {
+            constructor(images) {
+                this.imgs = images;
+                this.attackDuration = 60; // Animasyon çerçeve (frame) süresi
+            }
+
+            draw(ctx, x, y, angle, state, animTimer, attackTimer) {
+                // Eğer resimler HTML klasöründe yoksa veya yüklenemediyse çökmesini engelle
+                if (!this.imgs.govde.complete || this.imgs.govde.naturalWidth === 0) return;
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle + Math.PI / 2); // Yukarı bakacak şekilde kalibre et
+
+                let attackProg = (state === 'attack') ? (attackTimer / this.attackDuration) : 0;
+                let isMoving = (state === 'walk');
+                let idleBreath = Math.sin(animTimer) * 1.2;
+
+                // 1. ZEMİN GÖLGESİ
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath(); ctx.ellipse(0, 5, 34, 50, 0, 0, Math.PI * 2); ctx.fill();
+
+                // 2. BACAKLAR (8 Adet)
+                for (let i = 0; i < 4; i++) {
+                    let side = (i % 2 === 0) ? 1 : -1;
+                    let yOffset = (i - 1.5) * 14;
+                    let legPhase = (i < 2 ? i : i+1) * Math.PI / 2; 
+                    let moveAnim = state === 'attack' ? 0 : (isMoving ? 12 : 1.5);
+                    
+                    ctx.save();
+                    ctx.translate(side * 14, yOffset); // Bacak bağlantı noktası
+                    // Sol bacak için resmi aynala
+                    if (side === -1) { ctx.scale(-1, 1); } 
+                    // Kinetik yürüyüş dönüşü
+                    ctx.rotate(Math.sin(animTimer * 2 + legPhase) * (isMoving ? 0.4 : 0));
+                    
+                    ctx.drawImage(this.imgs.bacak, -15, -30, 60, 60);
+                    ctx.restore();
+                }
+
+                // 3. KUYRUK (6 Boğum + İğne)
+                ctx.save();
+                let tailBaseAngle = Math.sin(animTimer * 0.5) * 0.1;
+                
+                if (state === 'attack') {
+                    if (attackProg < 0.4) {
+                        // Güç toplama (geriye bükül)
+                        tailBaseAngle = (attackProg / 0.4) * Math.PI * 0.35; 
+                    } else {
+                        // Kırbaç gibi ileri vur
+                        let strikeProg = (attackProg - 0.4) / 0.6;
+                        let strikeForce = Math.sin(strikeProg * Math.PI); 
+                        tailBaseAngle = Math.PI * 0.35 - strikeForce * Math.PI * 1.5;
+                    }
+                }
+                
+                ctx.translate(0, 32);
+                ctx.rotate(tailBaseAngle);
+
+                const tailSegments = 6;
+                for (let t = 0; t < tailSegments; t++) {
+                    let segAngle = 0;
+                    if (state === 'attack') {
+                        if (attackProg < 0.4) {
+                            segAngle = (attackProg / 0.4) * 0.18; 
+                        } else {
+                            let strikeProg = (attackProg - 0.4) / 0.6;
+                            let sf = Math.sin(strikeProg * Math.PI);
+                            segAngle = -sf * 0.25; 
+                            if (t > 2) segAngle *= 1.6;
+                        }
+                    } else {
+                         segAngle = Math.sin(animTimer * 0.8 + t * 0.5) * 0.08;
+                    }
+
+                    ctx.rotate(segAngle);
+                    
+                    // Kuyruk uca doğru küçülür
+                    let scale = 1 - (t * 0.1);
+                    ctx.save(); ctx.scale(scale, scale);
+                    ctx.drawImage(this.imgs.kuyruk, -20, -20, 40, 40);
+                    ctx.restore();
+                    
+                    ctx.translate(0, 14); // Bir sonraki boğuma git
+                }
+
+                // İğne Çizimi
+                if(state === 'attack') {
+                    let stingerAngle = attackProg < 0.4 ? 0 : -Math.sin(((attackProg-0.4)/0.6) * Math.PI) * 0.6;
+                    ctx.rotate(stingerAngle);
+                }
+                ctx.drawImage(this.imgs.igne, -20, -25, 40, 40);
+                ctx.restore();
+
+                // 4. ANA GÖVDE VE KAFA
+                ctx.save();
+                ctx.drawImage(this.imgs.govde, -50, -50, 100, 100);
+                
+                ctx.translate(0, -32); // Kafa gövdenin ucundadır
+                ctx.drawImage(this.imgs.kafa, -30, -30, 60, 60);
+                ctx.restore();
+
+                // 5. KISKAÇLAR (KOPMAYAN EKLEMLİ SİSTEM)
+                for (let side = -1; side <= 1; side += 2) {
+                    ctx.save();
+                    
+                    let shoulderAngle = side * 0.4;
+                    let elbowAngle = side * -0.6; 
+                    let pincerAngle = 0;
+                    
+                    // Omuz noktası sabittir (Kopmayı engeller)
+                    let shoulderX = side * 18;
+                    let shoulderY = -34;
+
+                    if (state === 'attack') {
+                        if (attackProg < 0.4) {
+                            // Kollar yana açılır, dirsekler katlanır
+                            let w = attackProg / 0.4;
+                            shoulderAngle += side * w * 0.3;
+                            elbowAngle -= side * w * 0.3;
+                            pincerAngle = w * 0.6; 
+                        } else {
+                            // İleri uzanıp kıskaç çarpma
+                            let s = (attackProg - 0.4) / 0.6;
+                            let strike = Math.sin(s * Math.PI);
+                            
+                            shoulderAngle -= side * 0.6 * strike;
+                            elbowAngle += side * strike * 0.9;
+                            pincerAngle = 0.6 - (strike * 0.8);
+                        }
+                    } else {
+                        shoulderAngle += Math.sin(animTimer) * 0.08;
+                        elbowAngle += Math.sin(animTimer * 1.2) * 0.05;
+                        pincerAngle = Math.sin(animTimer * 1.2) * 0.1;
+                    }
+
+                    // Omuz
+                    ctx.translate(shoulderX, shoulderY); 
+                    ctx.rotate(shoulderAngle);
+                    ctx.save();
+                    if(side === -1) ctx.scale(-1, 1); // Sol kol için PNG'yi aynala
+                    ctx.drawImage(this.imgs.kol_ust, -20, -20, 40, 40);
+                    ctx.restore();
+                    
+                    // Dirsek
+                    ctx.translate(0, -20); 
+                    ctx.rotate(elbowAngle); 
+                    ctx.save();
+                    if(side === -1) ctx.scale(-1, 1);
+                    ctx.drawImage(this.imgs.kol_alt, -20, -20, 40, 40);
+                    ctx.restore();
+
+                    // Kıskaç Eklemi
+                    ctx.translate(0, -18);
+                    
+                    // Dış Kıskaç
+                    ctx.save();
+                    ctx.rotate(pincerAngle); 
+                    if(side === -1) ctx.scale(-1, 1);
+                    ctx.drawImage(this.imgs.kiskac_dis, -25, -35, 60, 60);
+                    ctx.restore();
+
+                    // İç Kıskaç (Hareketli Başparmak)
+                    ctx.save();
+                    ctx.rotate(side * -0.4 + (state === 'attack' ? (pincerAngle * -0.8) : (pincerAngle * -0.5)));
+                    if(side === -1) ctx.scale(-1, 1);
+                    ctx.drawImage(this.imgs.kiskac_ic, -25, -25, 40, 40);
+                    ctx.restore();
+                    
+                    ctx.restore(); // Kol çizimi sonu
+                }
+
+                ctx.restore(); // Ana transformasyon sonu
+            }
+        }
+
+        // ==========================================
+        // 3. OYUN KURULUMU VE KONTROLLER
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        // Karakter Durumu (Client State)
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            angle: 0,
+            animTimer: 0,
+            attackTimer: 0,
+            state: 'idle', // 'idle', 'walk', 'attack'
+            speed: 3.5 // Akrep yürüme hızı
+        };
+
+        const scorpionSprite = new SpriteScorpion(assets);
+
+        // --- Klavye ve Mouse Kontrolleri ---
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        let mouse = { x: canvas.width/2, y: canvas.height/2 };
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+        window.addEventListener('keydown', e => { if (e.code === 'Space') triggerAttack(); });
+
+        // --- Mobil Joystick Kontrolleri ---
+        let joyVector = { x: 0, y: 0 };
+        let activeTouchId = null;
+        let startPos = { x: 0, y: 0 };
+        
+        const joyZone = document.getElementById('joystickZone');
+        const joyKnob = document.getElementById('joystickKnob');
+        const atkBtn = document.getElementById('attackBtn');
+
+        // Saldırı Butonu
+        atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); triggerAttack(); });
+        atkBtn.addEventListener('mousedown', (e) => { e.preventDefault(); triggerAttack(); });
+
+        function triggerAttack() {
+            if (player.state !== 'attack') {
+                player.state = 'attack';
+                player.attackTimer = 0;
+            }
+        }
+
+        // Joystick Dokunmatik Olayları
+        window.addEventListener('touchstart', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (t.clientX < window.innerWidth / 2 && activeTouchId === null) {
+                    activeTouchId = t.identifier;
+                    startPos = { x: t.clientX, y: t.clientY };
+                    
+                    joyZone.style.left = (t.clientX - 60) + 'px';
+                    joyZone.style.top = (t.clientY - 60) + 'px';
+                    joyZone.classList.add('active');
+                }
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (t.identifier === activeTouchId) {
+                    e.preventDefault(); 
+                    
+                    let dx = t.clientX - startPos.x;
+                    let dy = t.clientY - startPos.y;
+                    const maxDist = 50;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist > maxDist) {
+                        dx = (dx / dist) * maxDist;
+                        dy = (dy / dist) * maxDist;
+                    }
+
+                    joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+                    
+                    joyVector.x = dx / maxDist;
+                    joyVector.y = dy / maxDist;
+                    
+                    // Rotasyonu joystick yönüne göre ayarla
+                    mouse.x = player.x + joyVector.x * 100;
+                    mouse.y = player.y + joyVector.y * 100;
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === activeTouchId) {
+                    activeTouchId = null;
+                    joyVector = { x: 0, y: 0 };
+                    joyKnob.style.transform = `translate(0px, 0px)`;
+                    joyZone.classList.remove('active');
+                }
+            }
+        });
+
+        // ==========================================
+        // 4. ANA OYUN DÖNGÜSÜ (GAME LOOP)
+        // ==========================================
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Zemin Izgarası
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+            let offsetX = -(player.x % 80);
+            let offsetY = -(player.y % 80);
+            ctx.beginPath();
+            for(let i = offsetX; i < canvas.width; i+=80) { ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); }
+            for(let i = offsetY; i < canvas.height; i+=80) { ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); }
+            ctx.stroke();
+
+            // --- HAREKET HESAPLAMA ---
+            let dx = 0, dy = 0;
+            
+            // Klavye girdisi
+            if (keys['KeyW']) dy -= 1; if (keys['KeyS']) dy += 1;
+            if (keys['KeyA']) dx -= 1; if (keys['KeyD']) dx += 1;
+            
+            // Joystick girdisi (Klavye yoksa)
+            if (dx === 0 && dy === 0) {
+                dx = joyVector.x;
+                dy = joyVector.y;
+            }
+
+            // Hareketi uygula
+            let isMoving = (dx !== 0 || dy !== 0);
+            
+            if (isMoving && player.state !== 'attack') {
+                if (Math.abs(dx) === 1 && Math.abs(dy) === 1 && joyVector.x === 0) {
+                    dx *= 0.7071; dy *= 0.7071; 
+                }
+                player.x += dx * player.speed;
+                player.y += dy * player.speed;
+                player.state = 'walk';
+                player.animTimer += 0.25; 
+            } else if (player.state === 'attack') {
+                // Saldırı sırasında hareket kilitlenir (Tok hissiyat için)
+                player.attackTimer++;
+                
+                if (player.attackTimer >= scorpionSprite.attackDuration) {
+                    player.state = 'idle'; // Saldırı bitti
+                }
+            } else {
+                player.state = 'idle';
+                player.animTimer += 0.05; 
+            }
+
+            // Sınırlar (Ekranda kalsın)
+            player.x = Math.max(50, Math.min(canvas.width - 50, player.x));
+            player.y = Math.max(50, Math.min(canvas.height - 50, player.y));
+
+            // --- ROTASYON (AÇI) HESAPLAMA ---
+            let targetAngle = player.angle;
+            
+            if (activeTouchId !== null && isMoving) {
+                targetAngle = Math.atan2(dy, dx); // Joystick yönüne bak
+            } else if (activeTouchId === null) {
+                targetAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x); // Fareye bak
+            }
+
+            // Açıyı yumuşak dönüştür
+            let angleDiff = targetAngle - player.angle;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            player.angle += angleDiff * (player.state === 'attack' ? 0.08 : 0.12); 
+
+            // --- EKRANA ÇİZ ---
+            let cameraX = player.x - canvas.width / 2;
+            let cameraY = player.y - canvas.height / 2;
+
+            scorpionSprite.draw(
+                ctx, 
+                player.x - cameraX, 
+                player.y - cameraY, 
+                player.angle, 
+                player.state, 
+                player.animTimer, 
+                player.attackTimer
+            );
+
+            // Resimler yüklenmediyse uyarı
+            if (!assets.govde.complete || assets.govde.naturalWidth === 0) {
+                ctx.fillStyle = 'white';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText("Lütfen 'akrep_govde.png', 'akrep_kafa.png' vb. dosyaların bu HTML dosyasıyla aynı klasörde olduğundan emin olun.", canvas.width/2, 100);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Başlat
+        gameLoop();
+    </script>
+</body>
+</html>

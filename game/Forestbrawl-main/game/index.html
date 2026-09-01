@@ -1,0 +1,2087 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#253818">
+    <meta name="msapplication-navbutton-color" content="#253818">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>ForestBrawl.fun - Premium IO</title>
+
+    <!-- Tailwind CSS, Fonts & Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="socket.io.js"></script>
+
+    <style>
+        :root {
+            /* Renk Paleti */
+            --border-heavy: #1F1108;
+            --bg-forest: #2D401F;
+            
+            --wood-light: #A36B42;
+            --wood-main: #85532F;
+            --wood-dark: #5C381E;
+            --wood-inset: #382110;
+            --wood-inset-dark: #221208;
+            
+            --btn-green: #79D138;
+            --btn-green-shadow: #4A8C1C;
+            --btn-yellow: #F7C02D;
+            --btn-yellow-shadow: #B88514;
+            --btn-red: #D94838;
+            --btn-red-shadow: #91271B;
+            --btn-blue: #3E8EDE;
+            --btn-blue-shadow: #215FA0;
+            --btn-purple: #9D4EDD;
+            --btn-purple-shadow: #672199;
+            
+            --text-gold: #FFDF73;
+            --text-beige: #F4E4C6;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--bg-forest);
+            font-family: 'Nunito', sans-serif;
+            touch-action: manipulation;
+        }
+
+        /* --- TİPOGRAFİ (Net, Temiz, Gölyesiz ve Yüksek Kontrastlı) --- */
+        .font-io { font-family: 'Lilita One', cursive; letter-spacing: 0.8px; }
+        
+        .stroke-text {
+            color: #ffffff;
+            font-weight: 800;
+            text-shadow: none;
+            -webkit-text-stroke: 0;
+        }
+        .stroke-text-gold {
+            color: #FFDF73;
+            font-weight: 800;
+            text-shadow: none;
+            -webkit-text-stroke: 0;
+        }
+        .stroke-text-dark {
+            color: #221208;
+            font-weight: 800;
+            text-shadow: none;
+            -webkit-text-stroke: 0;
+        }
+
+        /* --- PANELLER --- */
+        .panel-wood {
+            background: linear-gradient(180deg, var(--wood-light) 0%, var(--wood-main) 100%);
+            border: 4px solid var(--border-heavy);
+            border-radius: 16px;
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.25), inset 0 -4px 0 rgba(0,0,0,0.25), 0 10px 25px rgba(0,0,0,0.65);
+        }
+        
+        .panel-inset {
+            background-color: var(--wood-inset);
+            border: 3px solid var(--border-heavy);
+            border-radius: 12px;
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.5), 0 2px 0 rgba(255,255,255,0.12);
+        }
+
+        .modal-tab {
+            position: absolute;
+            top: -20px; left: -4px;
+            background-color: var(--text-beige);
+            border: 4px solid var(--border-heavy);
+            border-radius: 10px;
+            padding: 2px 18px;
+            color: var(--border-heavy);
+            font-size: 1.15rem;
+            font-family: 'Lilita One', cursive;
+            box-shadow: 0 4px 0 var(--border-heavy);
+            z-index: 10;
+        }
+
+        /* --- 3D BUTONLAR --- */
+        .btn-3d {
+            position: relative;
+            border: 3px solid var(--border-heavy);
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.06s, box-shadow 0.06s, filter 0.15s;
+        }
+        .btn-3d:active { transform: translateY(4px); filter: brightness(0.92); }
+        .btn-3d:hover { filter: brightness(1.08); }
+
+        .btn-play {
+            background: linear-gradient(180deg, #98EE4A 0%, var(--btn-green) 100%);
+            border-width: 4px;
+            box-shadow: inset 0 3px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(0,0,0,0.2), 0 6px 0 var(--btn-green-shadow), 0 6px 0 4px var(--border-heavy);
+        }
+        .btn-play:active {
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.2), 0 1px 0 var(--btn-green-shadow), 0 1px 0 4px var(--border-heavy);
+        }
+
+        .btn-yellow {
+            background: linear-gradient(180deg, #FFE066 0%, var(--btn-yellow) 100%);
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -3px 0 rgba(0,0,0,0.15), 0 5px 0 var(--btn-yellow-shadow), 0 5px 0 3px var(--border-heavy);
+        }
+        .btn-yellow:active {
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 0 var(--btn-yellow-shadow), 0 1px 0 3px var(--border-heavy);
+        }
+
+        .btn-red {
+            background: linear-gradient(180deg, #FA6A5C 0%, var(--btn-red) 100%);
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -3px 0 rgba(0,0,0,0.2), 0 5px 0 var(--btn-red-shadow), 0 5px 0 3px var(--border-heavy);
+        }
+        .btn-red:active {
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 1px 0 var(--btn-red-shadow), 0 1px 0 3px var(--border-heavy);
+        }
+
+        .btn-action {
+            background-color: var(--wood-inset);
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.12), inset 0 -3px 0 rgba(0,0,0,0.3), 0 4px 0 #1A0D06;
+        }
+        .btn-action:active { box-shadow: 0 1px 0 #1A0D06; }
+
+        /* --- İNPUT --- */
+        .input-io {
+            background-color: #1A0F08;
+            border: 3px solid var(--border-heavy);
+            border-radius: 12px;
+            color: white;
+            box-shadow: inset 0 4px 10px rgba(0,0,0,0.85), 0 2px 0 rgba(255,255,255,0.1);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .input-io:focus { outline: none; border-color: var(--btn-yellow); background-color: #26160B; }
+        .input-io::placeholder { color: #6E533F; text-shadow: none; }
+
+        /* --- İKON ETİKETLERİ --- */
+        .icon-badge {
+            background: linear-gradient(135deg, #4A4A4A, #2C2C2C);
+            border: 2px solid var(--border-heavy);
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.2), 0 3px 0 rgba(0,0,0,0.4);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .icon-fire { background: linear-gradient(135deg, #FF6B6B, #D93838); }
+        .icon-wind { background: linear-gradient(135deg, #4DABF7, #228BE6); }
+
+        /* --- TOGGLE SWITCH --- */
+        .toggle-switch {
+            appearance: none; width: 46px; height: 24px;
+            background: #D94838; border: 3px solid var(--border-heavy);
+            border-radius: 14px; position: relative; outline: none; cursor: pointer;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); transition: background-color 0.25s;
+        }
+        .toggle-switch::after {
+            content: ''; position: absolute; top: -1px; left: -1px;
+            width: 20px; height: 20px; background: var(--btn-green);
+            border: 2px solid var(--border-heavy); border-radius: 50%;
+            box-shadow: 0 2px 0 rgba(0,0,0,0.3); transition: transform 0.22s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .toggle-switch:checked { background: var(--text-beige); }
+        .toggle-switch:checked::after { transform: translateX(22px); }
+
+        /* --- TABS --- */
+        .tab-btn {
+            background-color: var(--wood-dark);
+            color: var(--text-beige);
+            border: 3px solid var(--border-heavy);
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-family: 'Lilita One', cursive;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s;
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.1), 0 3px 0 #1A0D06;
+            white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: linear-gradient(180deg, #FFE066 0%, var(--btn-yellow) 100%);
+            color: var(--border-heavy);
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), 0 3px 0 var(--btn-yellow-shadow);
+            -webkit-text-stroke: 0.5px rgba(255,255,255,0.4);
+        }
+
+        /* --- RARITY CARDS --- */
+        .item-card {
+            background-color: var(--wood-inset);
+            border: 3px solid var(--border-heavy);
+            border-radius: 12px;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.1s, border-color 0.15s, background-color 0.15s;
+        }
+        .item-card:hover { transform: translateY(-3px); background-color: #4A2B14; }
+        .item-card.equipped { border-color: #79D138; background-color: #2D401F; box-shadow: 0 0 12px rgba(121,209,56,0.4); }
+        .item-card.rarity-common { border-color: #7A5333; }
+        .item-card.rarity-rare { border-color: #3E8EDE; }
+        .item-card.rarity-epic { border-color: #9D4EDD; }
+        .item-card.rarity-legendary { border-color: #F7C02D; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: var(--wood-inset); border-left: 2px solid var(--border-heavy); }
+        ::-webkit-scrollbar-thumb { background: var(--btn-yellow); border: 2px solid var(--border-heavy); border-radius: 6px; }
+
+        /* Toast Bildirimleri */
+        #toast-container { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 99999; pointer-events: none; display: flex; flex-direction: column; gap: 8px; }
+        .toast {
+            background-color: var(--wood-dark); color: white; padding: 10px 20px;
+            border-radius: 12px; font-family: 'Lilita One', cursive; font-size: 1rem;
+            border: 3px solid var(--border-heavy); box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+            animation: slideDown 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, fadeOut 0.3s ease-in 2.2s forwards;
+            letter-spacing: 0.5px;
+            -webkit-text-stroke: 1px var(--border-heavy);
+        }
+        @keyframes slideDown { from { transform: translateY(-30px) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; margin-top: -40px; } }
+
+        /* Background Canvas */
+        #bgCanvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="w-full h-full flex flex-col items-center justify-center relative select-none">
+
+    <!-- Arka Plan Canvas -->
+    <canvas id="bgCanvas"></canvas>
+    <div id="toast-container"></div>
+
+    <!-- ================= ÜST HEADER ================= -->
+    <header class="absolute top-2 left-2 right-2 flex justify-between items-start z-30 pointer-events-none">
+        
+        <!-- Sol Bölüm (Auth, Sunucu, Ayarlar) -->
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2 pointer-events-auto">
+            
+            <!-- Guest Durumu (Giriş Yapılmamış) -->
+            <div id="header-guest-view" class="flex items-center gap-1.5">
+                <button onclick="openModal('registerModal'); playSfx('click')" class="btn-3d bg-[#7A4B29] px-2.5 py-1.5 flex items-center gap-1.5 group">
+                    <i class="fa-solid fa-sparkles text-[#F7C02D] text-base drop-shadow-md group-hover:scale-110 transition"></i>
+                    <div class="flex flex-col text-left leading-none">
+                        <span class="font-io text-[10px] sm:text-[11px] text-white">REGISTER</span>
+                        <span class="font-io text-[9px] sm:text-[10px] stroke-text-gold">+300 FREE</span>
+                    </div>
+                </button>
+                <button onclick="openModal('loginModal'); playSfx('click')" class="btn-3d btn-yellow px-4 py-1.5 font-io text-xs sm:text-sm stroke-text-dark">
+                    LOGIN
+                </button>
+            </div>
+
+            <!-- Kullanıcı Giriş Yapmış Durumu -->
+            <div id="header-user-view" class="hidden items-center gap-1.5">
+                <button onclick="openModal('profileModal'); playSfx('click')" class="btn-3d bg-[#4A2D17] px-2.5 py-1 flex items-center gap-2 border-[3px]">
+                    <div class="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center border border-black shadow overflow-hidden">
+                        <img id="header-avatar-img" src="players/wolf.png" class="w-6 h-6 object-contain" alt="Avatar">
+                    </div>
+                    <div class="flex flex-col text-left leading-tight">
+                        <span id="header-username" class="font-io text-xs text-white stroke-text leading-none">Gölge_Avcısı</span>
+                        <span id="header-rank" class="text-[9px] font-black text-[#F7C02D] leading-none">Lv.1 Tohum</span>
+                    </div>
+                </button>
+                <div class="panel-inset px-2.5 py-1 flex items-center gap-1.5 border-[2px]">
+                    <i class="fa-solid fa-coins text-yellow-400 text-xs"></i>
+                    <span id="header-gold" class="font-io text-xs text-[#FFDF73] stroke-text">1,500</span>
+                </div>
+            </div>
+            
+            <!-- Home & Sunucu Seçimi -->
+            <div class="flex items-center gap-1">
+                <button onclick="window.location.reload()" title="Yenile / Ana Menü" class="btn-3d btn-action p-1.5 px-2.5">
+                    <i class="fa-solid fa-house text-[#D94838] text-base drop-shadow-md"></i>
+                </button>
+                
+                <!-- GERÇEK ISTANBUL SUNUCUSU -->
+                <div onclick="openModal('serverModal'); playSfx('click')" class="panel-inset flex items-center gap-2 px-2.5 py-1 cursor-pointer hover:bg-[#4A2D17] transition-colors border-b-[3px]" title="Sunucu Seçimi">
+                    <div id="server-status-dot" class="w-2.5 h-2.5 bg-[#79D138] rounded-full border border-black animate-pulse"></div>
+                    <div class="flex flex-col leading-none text-left">
+                        <span class="text-[#F7C02D] font-black text-[8px] sm:text-[9px] tracking-wider uppercase">Official Server</span>
+                        <span class="text-white font-io text-[11px] sm:text-[13px] stroke-text tracking-wide">Istanbul #1</span>
+                    </div>
+                    <div class="bg-black/50 border border-[#1F1108] px-1.5 py-0.5 rounded text-[9px] font-black text-[#79D138] ml-1 flex items-center gap-1">
+                        <i class="fa-solid fa-signal text-[9px]"></i>
+                        <span id="header-ping">14ms</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ses ve Ayarlar -->
+            <div class="flex items-center gap-1">
+                <button id="btn-sound-toggle" onclick="toggleAudioMute()" title="Sesi Aç/Kapat" class="btn-3d btn-action p-1.5 px-2.5">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-white text-base drop-shadow-md"></i>
+                </button>
+                <button onclick="openModal('settingsModal'); playSfx('click')" title="Oyun Ayarları" class="btn-3d btn-action p-1.5 px-2.5">
+                    <i class="fa-solid fa-gear text-white text-base drop-shadow-md"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sağ Bölüm (Desktop / Geniş Ekranlar) -->
+        <div class="hidden lg:flex flex-col items-end gap-2 pointer-events-auto">
+            <div class="flex gap-2 mb-1">
+                <button onclick="openModal('helpModal'); playSfx('click')" class="btn-3d btn-action p-1 px-3" title="Nasıl Oynanır?">
+                    <i class="fa-solid fa-question text-white text-lg"></i>
+                </button>
+                <button onclick="openModal('newsModal'); playSfx('click')" class="btn-3d btn-yellow px-3 py-1 font-io text-xs flex items-center gap-1.5 stroke-text-dark">
+                    DAILY NEWS <i class="fa-regular fa-newspaper text-base"></i>
+                </button>
+            </div>
+
+            <!-- Arena / Promo Kartı -->
+            <div onclick="openModal('challengesModal'); playSfx('click')" class="panel-wood p-1.5 flex flex-col w-36 cursor-pointer hover:scale-105 transition-transform" style="border-width: 3px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
+                <span class="text-white font-black text-[10px] mb-0.5 px-1 drop-shadow-md">Forest Arena</span>
+                <div class="bg-gradient-to-r from-emerald-600 to-green-700 rounded-lg h-14 border-2 border-[var(--border-heavy)] relative overflow-hidden flex items-center justify-center shadow-inner">
+                    <span class="font-io text-white text-base stroke-text">SEASON 1</span>
+                    <i class="fa-solid fa-trophy absolute bottom-1 right-1 text-yellow-300 text-lg drop-shadow-md"></i>
+                </div>
+            </div>
+
+            <!-- Sosyal & Yardımcı Butonlar -->
+            <div class="grid grid-cols-2 gap-1.5 w-36 mt-1">
+                <button onclick="openDiscord()" class="btn-3d btn-action p-1.5 flex justify-center" title="Discord Sunucusu">
+                    <i class="fa-brands fa-discord text-[#5865F2] text-xl drop-shadow-md"></i>
+                </button>
+                <button onclick="openModal('partyModal'); playSfx('click')" class="btn-3d btn-action p-1.5 flex justify-center" title="Parti Kur / Katıl">
+                    <i class="fa-solid fa-users text-[#79D138] text-xl drop-shadow-md"></i>
+                </button>
+                <button onclick="openModal('clanModal'); playSfx('click')" class="btn-3d btn-action col-span-2 py-1.5 text-white font-io text-[11px] tracking-wide font-bold">
+                    KLAN SİSTEMİ
+                </button>
+                <button onclick="openModal('leadersModal'); playSfx('click')" class="btn-3d btn-action col-span-2 py-1.5 text-amber-300 font-io text-[11px] tracking-wide font-bold">
+                    LEADERBOARD
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= MERKEZ OYUN EKRANI ================= -->
+    <main class="z-20 flex flex-col items-center w-full max-w-[440px] px-4 mt-20 sm:mt-12 lg:mt-0">
+        
+        <!-- LOGO -->
+        <div class="relative w-full flex justify-center mb-4 sm:mb-6 drop-shadow-[0_8px_10px_rgba(0,0,0,0.6)]">
+            <h1 class="font-io text-[3.2rem] sm:text-[4.2rem] text-[#F7C02D] stroke-text relative cursor-pointer" onclick="playSfx('pop')">
+                Forest<span class="text-[#79D138] relative inline-block">Brawl
+                    <i class="fa-solid fa-leaf absolute -top-4 -right-3 text-[#4A8C1C] text-2xl drop-shadow-md -rotate-12"></i>
+                </span>
+                <span class="text-white text-xl sm:text-2xl absolute bottom-1 -right-6 drop-shadow-md">.fun</span>
+            </h1>
+        </div>
+
+        <!-- Kullanıcı Adı Girişi -->
+        <div class="w-full pl-2 flex justify-between items-center mb-1">
+            <span class="text-white font-black text-xs sm:text-sm uppercase tracking-wider">Set a username</span>
+            <span id="char-level-indicator" class="text-[#79D138] font-black text-[11px] uppercase tracking-wider">READY FOR BATTLE</span>
+        </div>
+        <input id="name-input" type="text" maxlength="18" value="Gölge_Avcısı" placeholder="Enter Name" class="input-io w-full h-13 sm:h-14 text-center font-io text-xl sm:text-2xl tracking-wide mb-3 py-2">
+
+        <!-- Karakter / Deri Seçim Kartı (Tıklayınca Sahip Olunan Kozmetikleri Açar) -->
+        <div class="w-full pl-2 flex justify-between items-end mb-1">
+            <span class="text-white font-black text-xs sm:text-sm uppercase tracking-wider">Character & Skin</span>
+            <span id="pet-tag-indicator" class="bg-black/60 border border-amber-400/50 px-2 py-0.5 rounded-md text-amber-300 font-black text-[10px]">ACTIVE SKIN</span>
+        </div>
+        
+        <button id="active-pet-btn" onclick="openCosmeticsModal(); playSfx('click')" class="btn-3d btn-action w-full h-[82px] sm:h-[92px] mb-3 relative flex items-center p-2 border-[4px] rounded-xl group hover:bg-[#4A2D17]">
+            <!-- Canlı Gerçek Oyun Karakter Resmi Önizleme (Oyunla Birebir Yön, El ve Silah) -->
+            <div class="w-[66px] h-[66px] sm:w-[76px] sm:h-[76px] bg-gradient-to-br from-[#2D1A0D] to-[#120A05] border-2 border-[var(--border-heavy)] rounded-lg flex items-center justify-center shadow-inner relative overflow-hidden">
+                <canvas id="active-pet-canvas" width="86" height="86" class="group-hover:scale-105 transition-transform"></canvas>
+            </div>
+            
+            <div class="ml-3 sm:ml-4 flex flex-col items-start justify-center">
+                <span id="active-pet-name" class="font-io text-xl sm:text-[1.7rem] text-white leading-none tracking-wide">Kurt</span>
+                <span class="font-black text-[10px] sm:text-[11px] text-amber-200 mt-1">Sahip Olduğun Kostümleri Kuşan</span>
+            </div>
+            
+            <div class="absolute right-3 flex gap-1.5">
+                <div class="icon-badge icon-fire w-8 h-8 sm:w-9 sm:h-9" title="Saldırı Gücü">
+                    <i class="fa-solid fa-fire text-white text-sm"></i>
+                </div>
+                <div class="icon-badge icon-wind w-8 h-8 sm:w-9 sm:h-9" title="Hareket Hızı">
+                    <i class="fa-solid fa-wind text-white text-sm"></i>
+                </div>
+            </div>
+        </button>
+
+        <!-- DEV 3D PLAY BUTONU -->
+        <button id="play-btn" onclick="startDirectGame()" class="btn-3d btn-play w-full h-[88px] sm:h-[100px] relative group overflow-hidden">
+            <span id="play-btn-text" class="font-io text-[2.8rem] sm:text-[3.5rem] tracking-widest text-white z-10 group-hover:scale-105 transition-transform">Play</span>
+            <i class="fa-solid fa-khanda absolute left-6 text-5xl text-white/20 transform -rotate-45 pointer-events-none"></i>
+            <i class="fa-solid fa-shield-halved absolute right-6 text-5xl text-white/20 transform rotate-12 pointer-events-none"></i>
+        </button>
+    </div>
+
+    <!-- Alt Grid (Cosmetics/Envanter, Shop/Mağaza, Challenges) -->
+    <div class="grid grid-cols-3 gap-2 sm:gap-3 w-full mt-4">
+        <button onclick="openCosmeticsModal(); playSfx('click')" class="btn-3d btn-action p-2 flex flex-col items-center justify-center border-[3px] hover:bg-[#4A2D17]">
+            <i class="fa-solid fa-box-open text-[#B388FF] text-2xl sm:text-3xl mb-1 mt-1"></i>
+            <span class="font-io text-white text-[11px] sm:text-[12px] tracking-wide font-bold">COSMETICS</span>
+        </button>
+        <button onclick="openShopModal(); playSfx('click')" class="btn-3d btn-yellow p-2 flex flex-col items-center justify-between border-[3px]">
+            <div class="w-full bg-[#F4E4C6] h-5 sm:h-6 border-2 border-[var(--border-heavy)] rounded-t-sm relative shadow-inner">
+                <div class="absolute w-2 h-3 border-2 border-[var(--border-heavy)] border-b-0 rounded-t-full -top-3 left-1/2 -translate-x-1/2"></div>
+            </div>
+            <i class="fa-solid fa-store text-[var(--border-heavy)] text-lg sm:text-xl my-0.5"></i>
+            <span class="font-io text-[var(--border-heavy)] text-[11px] sm:text-[12px] tracking-wide font-bold">SHOP</span>
+        </button>
+        <button onclick="openModal('challengesModal'); playSfx('click')" class="btn-3d btn-action p-2 flex flex-col items-center justify-start border-[3px] relative overflow-hidden hover:bg-[#4A2D17]">
+            <i class="fa-solid fa-trophy text-[#FFD54F] text-2xl sm:text-[1.7rem] mt-1"></i>
+            <span class="font-io text-white text-[10px] sm:text-[11px] mt-1 font-bold">CHALLENGES</span>
+            <div id="challenge-badge-progress" class="absolute bottom-0 w-full bg-black/70 border-t border-[var(--border-heavy)] text-[#79D138] font-black text-[10px] py-0.5 text-center">
+                0/3
+            </div>
+        </button>
+    </div>
+
+        <!-- Mobil İçin En Alt Hızlı Çubuk -->
+        <div class="flex lg:hidden justify-center gap-2 w-full mt-4">
+            <button onclick="openDiscord()" class="btn-3d btn-action px-3 py-1.5 font-io text-white stroke-text text-[10px] flex items-center gap-1.5">
+                <i class="fa-brands fa-discord text-[#5865F2]"></i> DISCORD
+            </button>
+            <button onclick="openModal('leadersModal'); playSfx('click')" class="btn-3d btn-action px-3 py-1.5 font-io text-white stroke-text text-[10px] flex items-center gap-1.5">
+                <i class="fa-solid fa-crown text-yellow-400"></i> LEADERS
+            </button>
+            <button onclick="openModal('partyModal'); playSfx('click')" class="btn-3d btn-action px-3 py-1.5 font-io text-white stroke-text text-[10px] flex items-center gap-1.5">
+                <i class="fa-solid fa-users text-[#79D138]"></i> PARTİ
+            </button>
+        </div>
+        <div class="flex lg:hidden justify-center w-full mt-2 gap-4 mb-3">
+             <span onclick="openModal('helpModal'); playSfx('click')" class="text-white/70 font-black text-[9px] cursor-pointer hover:text-white transition">HOW TO PLAY</span>
+             <span onclick="openModal('newsModal'); playSfx('click')" class="text-white/70 font-black text-[9px] cursor-pointer hover:text-white transition">UPDATES</span>
+        </div>
+    </main>
+
+
+    <!-- ================== MODALLAR ================== -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black/75 z-50 hidden flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm" onclick="closeAllModals()">
+        
+        <!-- 1. LOGIN MODALI -->
+        <div id="loginModal" class="panel-wood w-full max-w-[380px] p-2 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">LOGIN</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute -top-4 -right-3 sm:-right-4 w-9 h-9 rounded-xl font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="panel-inset p-4 sm:p-5 flex flex-col mt-6 border-[3px]">
+                <p class="font-io text-sm text-[#F7C02D] stroke-text mb-4 text-center leading-tight">LOGIN TO YOUR ACCOUNT</p>
+                
+                <label class="text-white font-black text-xs mb-1">Username</label>
+                <input id="login-username" type="text" placeholder="Kullanıcı Adı" class="input-io w-full h-11 px-3 font-io text-base mb-3">
+                
+                <label class="text-white font-black text-xs mb-1">Password</label>
+                <input id="login-password" type="password" placeholder="Şifre" class="input-io w-full h-11 px-3 font-io text-base mb-4">
+                
+                <button onclick="handleLogin()" class="btn-3d btn-yellow w-full py-2.5 font-io text-base tracking-wide stroke-text-dark border-[3px] mb-3">
+                    LOGIN
+                </button>
+                
+                <div class="flex justify-center items-center gap-1.5 text-xs text-white/80">
+                    <span>Hesabın yok mu?</span>
+                    <span onclick="openModal('registerModal'); playSfx('click')" class="text-[#F7C02D] font-bold cursor-pointer underline hover:text-white">Kayıt Ol (+300 🪙)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. REGISTER MODALI -->
+        <div id="registerModal" class="panel-wood w-full max-w-[380px] p-2 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">CREATE ACCOUNT</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute -top-4 -right-3 sm:-right-4 w-9 h-9 rounded-xl font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="panel-inset p-4 sm:p-5 flex flex-col mt-6 border-[3px]">
+                <div class="text-center mb-3">
+                    <p class="font-io text-sm text-[#79D138] stroke-text leading-tight">JOIN FORESTBRAWL</p>
+                    <p class="font-black text-[#FFDF73] text-[11px] flex items-center justify-center gap-1.5 mt-1 drop-shadow-md">
+                        Kayıt ol ve anında 300 <i class="fa-solid fa-coins text-[#F7C02D]"></i> kazan!
+                    </p>
+                </div>
+                
+                <label class="text-white font-black text-xs mb-1">Username (3-20 karakter)</label>
+                <input id="reg-username" type="text" placeholder="Kullanıcı Adı" class="input-io w-full h-11 px-3 font-io text-base mb-3">
+                
+                <label class="text-white font-black text-xs mb-1">Password (en az 4 karakter)</label>
+                <input id="reg-password" type="password" placeholder="Şifre" class="input-io w-full h-11 px-3 font-io text-base mb-3">
+
+                <label class="text-white font-black text-xs mb-1">Email (İsteğe bağlı)</label>
+                <input id="reg-email" type="email" placeholder="ornek@mail.com" class="input-io w-full h-11 px-3 font-io text-base mb-4">
+                
+                <button onclick="handleRegister()" class="btn-3d btn-red w-full py-2.5 font-io text-base tracking-wide stroke-text border-[3px] mb-3">
+                    CREATE ACCOUNT (+300 🪙)
+                </button>
+                
+                <div class="flex justify-center items-center gap-1.5 text-xs text-white/80">
+                    <span>Zaten hesabın var mı?</span>
+                    <span onclick="openModal('loginModal'); playSfx('click')" class="text-[#F7C02D] font-bold cursor-pointer underline hover:text-white">Giriş Yap</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. PROFILE MODALI -->
+        <div id="profileModal" class="panel-wood w-full max-w-[440px] p-2 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">PLAYER PROFILE</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute -top-4 -right-3 sm:-right-4 w-9 h-9 rounded-xl font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="panel-inset p-4 sm:p-5 mt-6 border-[3px] flex flex-col gap-3">
+                <div class="flex items-center gap-3 bg-black/40 p-3 rounded-xl border border-white/15">
+                    <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-700 border-2 border-black flex items-center justify-center shadow-inner overflow-hidden">
+                        <img id="prof-avatar-img" src="players/wolf.png" class="w-12 h-12 object-contain" alt="Avatar">
+                    </div>
+                    <div class="flex flex-col flex-1">
+                        <span id="prof-username" class="font-io text-lg text-white stroke-text leading-tight">Gölge_Avcısı</span>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span id="prof-rank-name" class="bg-gradient-to-r from-yellow-400 to-amber-500 text-black px-2 py-0.5 rounded font-io text-xs shadow">Lv.1 Tohum</span>
+                            <span id="prof-gold-badge" class="bg-black/50 px-2 py-0.5 rounded text-[10px] text-[#FFDF73] font-black border border-yellow-500/40">🪙 1,500</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Canlı XP & Seviye İlerleme Kartı -->
+                <div class="bg-black/30 p-3 rounded-xl border border-white/10 flex flex-col gap-1.5">
+                    <div class="flex justify-between items-center text-[11px] font-black text-white">
+                        <span class="flex items-center gap-1.5 text-yellow-400 font-io text-xs"><i class="fa-solid fa-sparkles"></i> XP İlerlemesi</span>
+                        <span id="prof-xp-text" class="text-white font-io text-xs stroke-text">450 / 800 XP (56%)</span>
+                    </div>
+                    <div class="w-full h-3.5 bg-black/70 rounded-full border border-black overflow-hidden relative shadow-inner">
+                        <div id="prof-xp-bar" class="h-full bg-gradient-to-r from-[#79D138] to-[#98EE4A] rounded-full transition-all duration-500 shadow" style="width: 56%;"></div>
+                    </div>
+                    <span id="prof-remaining-xp" class="text-[10px] font-black text-green-300 text-center block mt-0.5 drop-shadow">Sonraki Rank (Taş) için: 350 XP kaldı</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mt-1">
+                    <div class="bg-black/30 p-2 rounded-lg border border-white/10 text-center">
+                        <span class="text-[9px] font-black text-gray-400 block">KILLS</span>
+                        <span id="prof-kills" class="font-io text-base text-green-400 stroke-text">0</span>
+                    </div>
+                    <div class="bg-black/30 p-2 rounded-lg border border-white/10 text-center">
+                        <span class="text-[9px] font-black text-gray-400 block">DEATHS</span>
+                        <span id="prof-deaths" class="font-io text-base text-red-400 stroke-text">0</span>
+                    </div>
+                    <div class="bg-black/30 p-2 rounded-lg border border-white/10 text-center">
+                        <span class="text-[9px] font-black text-gray-400 block">K/D</span>
+                        <span id="prof-kd" class="font-io text-base text-yellow-400 stroke-text">0.00</span>
+                    </div>
+                    <div class="bg-black/30 p-2 rounded-lg border border-white/10 text-center">
+                        <span class="text-[9px] font-black text-gray-400 block">HIGH SCORE</span>
+                        <span id="prof-best-score" class="font-io text-base text-amber-300 stroke-text">0</span>
+                    </div>
+                    <div class="bg-black/30 p-2 rounded-lg border border-white/10 text-center">
+                        <span class="text-[9px] font-black text-gray-400 block">GAMES</span>
+                        <span id="prof-games" class="font-io text-base text-blue-300 stroke-text">0</span>
+                    </div>
+                    <div class="bg-black/30 p-2 rounded-lg border border-white/10 text-center">
+                        <span class="text-[9px] font-black text-gray-400 block">COINS</span>
+                        <span id="prof-coins" class="font-io text-base text-yellow-400 stroke-text">1500</span>
+                    </div>
+                </div>
+
+                <button onclick="handleLogout()" class="btn-3d btn-action w-full py-2 font-io text-xs text-red-300 stroke-text mt-2">
+                    <i class="fa-solid fa-right-from-bracket mr-1.5"></i> ÇIKIŞ YAP
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. AYARLAR MODALI -->
+        <div id="settingsModal" class="panel-wood w-full max-w-[620px] p-2 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">SETTINGS</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute -top-4 -right-3 sm:-right-4 w-9 h-9 rounded-xl font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="flex flex-col sm:flex-row gap-2 mt-6 max-h-[70vh] sm:max-h-none overflow-y-auto pr-1">
+                <div class="panel-inset p-3 sm:p-4 flex-1 flex flex-col gap-2.5 border-[3px]">
+                    <h3 class="font-io text-white stroke-text text-[13px] mb-1 text-center">Oynanış & Mobil</h3>
+                    <div class="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/10">
+                        <div class="flex flex-col leading-tight w-2/3">
+                            <span class="text-white font-black text-xs">1-Click Food (Otomatik Yemek)</span>
+                            <span class="text-[#F4E4C6] font-black text-[9px]">Tek tıkla veya can azalınca hızlı beslen</span>
+                        </div>
+                        <input id="set-auto-eat" type="checkbox" checked class="toggle-switch" onchange="saveSetting('fb_auto_eat', this.checked)">
+                    </div>
+
+                    <div class="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/10">
+                        <div class="flex flex-col leading-tight w-2/3">
+                            <span class="text-white font-black text-xs">1-Click Wall (Hızlı Duvar)</span>
+                            <span class="text-[#F4E4C6] font-black text-[9px]">Izgaraya otomatik hizalı yapı yerleştir</span>
+                        </div>
+                        <input id="set-build-snap" type="checkbox" checked class="toggle-switch" onchange="saveSetting('fb_build_snap', this.checked)">
+                    </div>
+
+                    <div class="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/10">
+                        <div class="flex flex-col leading-tight w-2/3">
+                            <span class="text-white font-black text-xs">Ekran Sarsıntısı (Screen Shake)</span>
+                            <span class="text-[#F4E4C6] font-black text-[9px]">Hasar alındığında ekran titreşimi</span>
+                        </div>
+                        <input id="set-shake" type="checkbox" checked class="toggle-switch" onchange="saveSetting('fb_shake', this.checked)">
+                    </div>
+
+                    <div class="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/10">
+                        <div class="flex flex-col leading-tight w-2/3">
+                            <span class="text-white font-black text-xs">Mobil Joystick Göster</span>
+                            <span class="text-[#F4E4C6] font-black text-[9px]">Dokunmatik kontrolleri aktif et</span>
+                        </div>
+                        <input id="set-mobile-ctrl" type="checkbox" checked class="toggle-switch" onchange="saveSetting('fb_mobile_controls', this.checked)">
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col gap-2">
+                    <div class="panel-inset p-3 sm:p-4 border-[3px]">
+                        <h3 class="font-io text-white stroke-text text-[13px] mb-2 text-center">Ses & Efektler</h3>
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-volume-high text-white text-xs w-4"></i>
+                                <span class="text-white font-black text-xs">SFX Ses</span>
+                            </div>
+                            <input id="set-sfx-vol" type="range" min="0" max="100" value="80" class="w-[50%] accent-[#79D138] h-2.5 bg-[#D94838] rounded-full border border-black cursor-pointer" oninput="saveVolumeSetting('sfx', this.value)">
+                        </div>
+
+                        <div class="flex justify-between items-center mb-3">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-music text-white text-xs w-4"></i>
+                                <span class="text-white font-black text-xs">Müzik</span>
+                            </div>
+                            <input id="set-music-vol" type="range" min="0" max="100" value="50" class="w-[50%] accent-[#79D138] h-2.5 bg-[#D94838] rounded-full border border-black cursor-pointer" oninput="saveVolumeSetting('music', this.value)">
+                        </div>
+                        
+                        <div class="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/10">
+                            <div class="flex flex-col leading-tight">
+                                <span class="text-white font-black text-xs">SFX Aktif</span>
+                                <span class="text-[#F4E4C6] font-black text-[9px]">Vuruş ve toplama sesleri</span>
+                            </div>
+                            <input id="set-sfx-mute" type="checkbox" checked class="toggle-switch" onchange="saveSetting('fb_sfx_muted', !this.checked)">
+                        </div>
+                    </div>
+                    
+                    <div class="panel-inset p-3 sm:p-4 flex-1 border-[3px]">
+                        <h3 class="font-io text-white stroke-text text-[13px] mb-1 text-center">Grafik & Performans</h3>
+                        <div class="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/10 mb-2">
+                            <span class="text-white font-black text-xs">Bina & Karakter Gölgeleri</span>
+                            <input id="set-shadows" type="checkbox" checked class="toggle-switch" onchange="saveSetting('fb_shadows', this.checked)">
+                        </div>
+                        <div class="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/10">
+                            <span class="text-white font-black text-xs">FPS & Ping Göstergesi</span>
+                            <input id="set-fps" type="checkbox" checked class="toggle-switch" onchange="saveSetting('fb_fps', this.checked)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. SUNUCU SEÇİM MODALI -->
+        <div id="serverModal" class="panel-wood w-full max-w-[680px] p-2 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">SERVERS</div>
+            <button onclick="pingServer(); playSfx('click')" title="Yenile" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-[54px] w-9 h-9 rounded-lg flex items-center justify-center text-[var(--border-heavy)] z-50">
+                <i class="fa-solid fa-rotate-right text-sm"></i>
+            </button>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="mt-4">
+                <div class="grid grid-cols-6 gap-1 px-3 mb-2 text-white font-io stroke-text text-[10px] sm:text-xs">
+                    <div class="col-span-1 text-center">Status</div>
+                    <div class="col-span-2 pl-2">Server Name</div>
+                    <div class="col-span-1 text-center">Region</div>
+                    <div class="col-span-1 text-center">Ping</div>
+                    <div class="col-span-1 text-center">Selection</div>
+                </div>
+                
+                <div class="panel-inset p-2.5 h-[280px] overflow-y-auto flex flex-col gap-2 border-[3px]">
+                    <div class="bg-gradient-to-r from-[#3B5A24] to-[#4F7A30] border-2 border-[#8EE84C] rounded-xl p-2.5 grid grid-cols-6 gap-1 items-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
+                        <div class="col-span-1 flex justify-center items-center gap-1.5">
+                            <div class="w-3.5 h-3.5 bg-[#79D138] rounded-full border-2 border-black animate-pulse shadow"></div>
+                            <span class="text-white font-black text-[10px] uppercase">Online</span>
+                        </div>
+                        
+                        <div class="col-span-2 flex items-center gap-2">
+                            <div class="w-8 h-8 bg-black/40 rounded-lg flex items-center justify-center border border-white/20">
+                                <span class="text-lg">🇹🇷</span>
+                            </div>
+                            <div class="flex flex-col leading-tight">
+                                <span class="text-[#FFDF73] font-io text-xs sm:text-sm stroke-text">Istanbul #1</span>
+                                <span class="text-white font-black text-[9px] opacity-90">Official Turkey & Global</span>
+                            </div>
+                        </div>
+
+                        <div class="col-span-1 text-center text-white font-black text-[11px] drop-shadow-md">
+                            Istanbul (TR)
+                        </div>
+
+                        <div class="col-span-1 flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-signal text-[#79D138] text-xs"></i>
+                            <span id="modal-server-ping" class="text-white font-black text-xs">14ms</span>
+                        </div>
+
+                        <div class="col-span-1 flex justify-center">
+                            <button class="btn-3d btn-play border-2 px-3 py-1 font-io text-xs tracking-wide shadow-[0_2px_0_var(--btn-green-shadow)] stroke-text">
+                                CONNECTED
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/30 p-3 rounded-xl border border-white/10 text-center mt-2">
+                        <i class="fa-solid fa-circle-check text-[#79D138] text-lg mb-1"></i>
+                        <p class="font-io text-xs text-white stroke-text">Tüm oyuncular Istanbul #1 resmi sunucusunda eşleşmektedir.</p>
+                        <span id="modal-online-text" class="text-[10px] font-black text-[#FFDF73]">Aktif Oyuncu: 1 | Gecikme: Düşük (Ultra Hızlı)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. COSMETICS / ENVANTER MODALI (SADECE SAHİP OLUNAN EŞYALAR & KUŞANMA) -->
+        <div id="cosmeticsModal" class="panel-wood w-full max-w-[840px] p-2.5 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">COSMETICS / ENVANTER</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="mt-4 flex flex-col gap-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+                    <div class="flex items-center gap-2">
+                        <button class="tab-btn active" data-cat="deriler" onclick="setCosmeticsTab('deriler')">
+                            <i class="fa-solid fa-user-ninja"></i> <span>Derilerim</span>
+                        </button>
+                        <button class="tab-btn" data-cat="kiliclar" onclick="setCosmeticsTab('kiliclar')">
+                            <i class="fa-solid fa-khanda"></i> <span>Kılıçlarım</span>
+                        </button>
+                        <button class="tab-btn" data-cat="baltalar" onclick="setCosmeticsTab('baltalar')">
+                            <i class="fa-solid fa-axe"></i> <span>Baltalarım</span>
+                        </button>
+                    </div>
+
+                    <button onclick="openShopModal(); playSfx('click')" class="btn-3d btn-yellow px-3 py-1 font-io text-xs stroke-text-dark ml-auto">
+                        <i class="fa-solid fa-store mr-1"></i> MAĞAZA (SHOP)
+                    </button>
+                </div>
+
+                <!-- Gövde: Sol Canlı Birebir Oyun Önizleme + Sağ Envanter Izgarası -->
+                <div class="flex flex-col sm:flex-row gap-2.5">
+                    <div class="panel-inset p-3 sm:w-[240px] flex flex-col items-center justify-between border-[3px]">
+                        <div class="text-center">
+                            <span class="font-io text-xs text-white stroke-text block">INVENTORY PREVIEW</span>
+                            <span id="cosmetic-preview-name" class="font-black text-xs text-[#F7C02D] truncate max-w-[210px] block">Kurt</span>
+                        </div>
+                        
+                        <!-- Birebir Oyun İçi Canlı Canvas -->
+                        <div class="my-2 w-44 h-44 bg-gradient-to-b from-[#1C2C14] to-[#0D1808] rounded-xl border-2 border-black/60 flex items-center justify-center relative overflow-hidden shadow-inner">
+                            <canvas id="cosmetic-preview-canvas" width="200" height="200"></canvas>
+                        </div>
+                        
+                        <div class="w-full text-center">
+                            <span id="cosmetic-preview-status" class="text-[10px] font-black text-green-400 block mb-1">EQUIPPED</span>
+                            <button id="cosmetic-preview-btn" onclick="equipCurrentCosmeticItem()" class="btn-3d btn-play w-full py-1.5 font-io text-xs stroke-text">
+                                EQUIP
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sağ: SADECE SAHİP OLUNAN EŞYALAR -->
+                    <div class="panel-inset p-2.5 flex-1 h-[340px] sm:h-[380px] overflow-y-auto border-[3px]">
+                        <div id="cosmetic-owned-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. SHOP / MAĞAZA MODALI (TÜM SATIN ALINABİLİR EŞYALAR VE FİYATLARI) -->
+        <div id="shopModal" class="panel-wood w-full max-w-[840px] p-2.5 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">SHOP / MAĞAZA</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="mt-4 flex flex-col gap-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2 px-1">
+                    <div class="flex items-center gap-2">
+                        <button class="tab-btn active shop-tab" data-cat="deriler" onclick="setShopTab('deriler')">
+                            <i class="fa-solid fa-shirt"></i> <span>Tüm Deriler</span>
+                        </button>
+                        <button class="tab-btn shop-tab" data-cat="kiliclar" onclick="setShopTab('kiliclar')">
+                            <i class="fa-solid fa-khanda"></i> <span>Kılıçlar</span>
+                        </button>
+                        <button class="tab-btn shop-tab" data-cat="baltalar" onclick="setShopTab('baltalar')">
+                            <i class="fa-solid fa-axe"></i> <span>Baltalar</span>
+                        </button>
+                    </div>
+
+                    <div class="panel-inset px-3.5 py-1.5 flex items-center gap-1.5 border-[2px] ml-auto">
+                        <i class="fa-solid fa-coins text-yellow-400 text-sm"></i>
+                        <span id="shop-gold-display" class="font-io text-sm text-[#FFDF73] stroke-text">1,500</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-2.5">
+                    <div class="panel-inset p-3 sm:w-[240px] flex flex-col items-center justify-between border-[3px]">
+                        <div class="text-center">
+                            <span class="font-io text-xs text-white stroke-text block">SHOP PREVIEW</span>
+                            <span id="shop-preview-name" class="font-black text-xs text-[#F7C02D] truncate max-w-[210px] block">Alev Tilkisi</span>
+                        </div>
+                        
+                        <div class="my-2 w-44 h-44 bg-gradient-to-b from-[#1C2C14] to-[#0D1808] rounded-xl border-2 border-black/60 flex items-center justify-center relative overflow-hidden shadow-inner">
+                            <canvas id="shop-preview-canvas" width="200" height="200"></canvas>
+                        </div>
+                        
+                        <div class="w-full text-center">
+                            <span id="shop-preview-status" class="text-[10px] font-black text-yellow-400 block mb-1">COST: 300 🪙</span>
+                            <button id="shop-preview-btn" class="btn-3d btn-red w-full py-1.5 font-io text-xs stroke-text">
+                                SATIN AL
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sağ: TÜM MAĞAZA EŞYALARI -->
+                    <div class="panel-inset p-2.5 flex-1 h-[340px] sm:h-[380px] overflow-y-auto border-[3px]">
+                        <div id="shop-all-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. LİDERLER MODALI -->
+        <div id="leadersModal" class="panel-wood w-full max-w-[500px] p-2.5 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">LEADERBOARD</div>
+            <button onclick="loadLeaderboard(); playSfx('click')" title="Yenile" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-[54px] w-9 h-9 rounded-lg flex items-center justify-center text-[var(--border-heavy)] z-50">
+                <i class="fa-solid fa-rotate-right text-sm"></i>
+            </button>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="flex gap-1.5 mt-4 px-1">
+                <button id="lb-tab-top" onclick="setLeaderboardTab('all'); playSfx('click')" class="btn-3d btn-play flex-1 py-1.5 font-io text-[11px] stroke-text">🏆 EN İYİLER</button>
+                <button id="lb-tab-recent" onclick="setLeaderboardTab('recent'); playSfx('click')" class="btn-3d bg-[#6b4932] border-[2px] border-[#3a1e06] text-white/80 flex-1 py-1.5 font-io text-[11px] stroke-text">⏱️ SON MAÇLAR</button>
+                <button id="lb-tab-kills" onclick="setLeaderboardTab('kills'); playSfx('click')" class="btn-3d bg-[#6b4932] border-[2px] border-[#3a1e06] text-white/80 flex-1 py-1.5 font-io text-[11px] stroke-text">⚔️ EN ÇOK ÖLDÜREN</button>
+            </div>
+
+            <div class="panel-inset p-3 mt-2 h-[320px] overflow-y-auto border-[3px] flex flex-col gap-2">
+                <div id="leaderboard-list" class="flex flex-col gap-1.5"></div>
+            </div>
+        </div>
+
+        <!-- 9. GÖREVLER MODALI -->
+        <div id="challengesModal" class="panel-wood w-full max-w-[440px] p-2.5 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">DAILY CHALLENGES</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="panel-inset p-3.5 mt-4 border-[3px] flex flex-col gap-2.5">
+                <div class="bg-black/30 p-2.5 rounded-xl border border-white/10 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 bg-green-900/60 rounded-lg flex items-center justify-center border border-green-500 text-lg">🪓</div>
+                        <div class="flex flex-col">
+                            <span class="text-white font-black text-xs">10 Ağaç Kes</span>
+                            <span class="text-[#FFDF73] font-black text-[10px]">Ödül: +150 🪙 | +50 XP</span>
+                        </div>
+                    </div>
+                    <span class="text-green-400 font-io text-sm stroke-text">5/10</span>
+                </div>
+
+                <div class="bg-black/30 p-2.5 rounded-xl border border-white/10 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 bg-red-900/60 rounded-lg flex items-center justify-center border border-red-500 text-lg">⚔️</div>
+                        <div class="flex flex-col">
+                            <span class="text-white font-black text-xs">3 Düşman Alt Et</span>
+                            <span class="text-[#FFDF73] font-black text-[10px]">Ödül: +250 🪙 | +100 XP</span>
+                        </div>
+                    </div>
+                    <span class="text-green-400 font-io text-sm stroke-text">1/3</span>
+                </div>
+
+                <div class="bg-black/30 p-2.5 rounded-xl border border-white/10 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 bg-amber-900/60 rounded-lg flex items-center justify-center border border-yellow-500 text-lg">🪙</div>
+                        <div class="flex flex-col">
+                            <span class="text-white font-black text-xs">500 Altın Topla</span>
+                            <span class="text-[#FFDF73] font-black text-[10px]">Ödül: +200 🪙 | +80 XP</span>
+                        </div>
+                    </div>
+                    <span class="text-green-400 font-io text-sm stroke-text">240/500</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 10. PARTİ MODALI -->
+        <div id="partyModal" class="panel-wood w-full max-w-[400px] p-2.5 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">PARTY SYSTEM</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="panel-inset p-4 mt-4 border-[3px] flex flex-col gap-3">
+                <button onclick="createParty()" class="btn-3d btn-yellow w-full py-2.5 font-io text-sm stroke-text-dark border-[3px]">
+                    <i class="fa-solid fa-plus mr-1.5"></i> YENİ PARTİ OLUŞTUR
+                </button>
+                <div class="flex items-center gap-2 my-1">
+                    <div class="h-px bg-white/20 flex-1"></div>
+                    <span class="text-[10px] font-black text-white/60">VEYA</span>
+                    <div class="h-px bg-white/20 flex-1"></div>
+                </div>
+                <div class="flex gap-2">
+                    <input id="party-code-input" type="text" maxlength="6" placeholder="KOD GİR (Örn: A8K9)" class="input-io flex-1 h-11 px-3 text-center font-io text-sm uppercase">
+                    <button onclick="joinParty()" class="btn-3d btn-play px-4 font-io text-xs stroke-text">
+                        KATIL
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 11. KLAN MODALI -->
+        <div id="clanModal" class="panel-wood w-full max-w-[420px] p-2.5 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">CLAN SYSTEM</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="panel-inset p-4 mt-4 border-[3px] flex flex-col gap-3 text-center">
+                <i class="fa-solid fa-shield-halved text-4xl text-[#79D138]"></i>
+                <h3 class="font-io text-base text-white stroke-text">ForestBrawl Klanları</h3>
+                <p class="text-xs font-black text-gray-300">Kendi klanını kurarak arkadaşlarınla ormanı fethet!</p>
+                <div class="flex gap-2 mt-2">
+                    <input id="clan-tag-input" type="text" maxlength="4" placeholder="TAG (Örn: FB)" class="input-io w-24 h-11 px-2 text-center font-io text-sm uppercase">
+                    <input id="clan-name-input" type="text" maxlength="16" placeholder="Klan İsmi" class="input-io flex-1 h-11 px-3 font-io text-xs">
+                </div>
+                <button onclick="createClan()" class="btn-3d btn-play w-full py-2.5 font-io text-xs stroke-text">
+                    KLAN OLUŞTUR (500 🪙)
+                </button>
+            </div>
+        </div>
+
+        <!-- 12. NASIL OYNANIR & YARDIM MODALI -->
+        <div id="helpModal" class="panel-wood w-full max-w-[460px] p-2.5 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">HOW TO PLAY</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="panel-inset p-4 mt-4 border-[3px] flex flex-col gap-2.5 text-white">
+                <div class="flex items-center gap-3 bg-black/30 p-2 rounded-lg">
+                    <span class="font-io text-[#F7C02D] text-lg w-7 text-center">W A S D</span>
+                    <span class="text-xs font-black">Hareket et (veya ekrandaki sanal joystick)</span>
+                </div>
+                <div class="flex items-center gap-3 bg-black/30 p-2 rounded-lg">
+                    <span class="font-io text-[#79D138] text-lg w-7 text-center">MOUSE</span>
+                    <span class="text-xs font-black">Yönel ve Sol Tık ile saldır / kaynak topla</span>
+                </div>
+                <div class="flex items-center gap-3 bg-black/30 p-2 rounded-lg">
+                    <span class="font-io text-blue-400 text-lg w-7 text-center">SPACE</span>
+                    <span class="text-xs font-black">Hızlı Atılma (Dash / Hızlanma)</span>
+                </div>
+                <div class="flex items-center gap-3 bg-black/30 p-2 rounded-lg">
+                    <span class="font-io text-purple-400 text-lg w-7 text-center">1 - 6</span>
+                    <span class="text-xs font-black">Silah, Duvar, Tuzak ve Yemek seçimi</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 13. GÜNLÜK HABERLER -->
+        <div id="newsModal" class="panel-wood w-full max-w-[440px] p-2.5 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">DAILY NEWS</div>
+            <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
+            
+            <div class="panel-inset p-4 mt-4 border-[3px] flex flex-col gap-3 text-white">
+                <div class="bg-black/30 p-3 rounded-xl border border-yellow-500/30">
+                    <span class="text-yellow-400 font-io text-xs block">✨ v2.6 GÜNCELLEMESİ</span>
+                    <p class="text-xs font-black text-gray-200 mt-1 leading-relaxed">
+                        • Karakter, el ve silah hizalaması oyun içi render ile %100 eşitlendi.<br>
+                        • Envanter (Cosmetics) sadece sahip olunan eşyaları gösterir.<br>
+                        • Mağaza (Shop) tüm satın alınabilir eşyaları sunar.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================= JAVASCRIPT MOTORU ================= -->
+    <script>
+        /* ════════════════════════════════════════════════════════════════
+           1. GERÇEK OYUN VERİLERİ (players/*.png ve weapons/*.png)
+        ════════════════════════════════════════════════════════════════ */
+        
+        // Oyun içi Karakter Derileri
+        const REAL_SKINS = [
+            { id: 'wolf',        name: 'Kurt',            img: 'players/wolf.png',        rarity: 'common', free: true,  cost: 0 },
+            { id: 'default',     name: 'Savaşçı (Temel)', img: 'players/default.png',     rarity: 'common', free: true,  cost: 0 },
+            { id: 'fox',         name: 'Alev Tilkisi',    img: 'players/fox.png',         rarity: 'rare',   free: false, cost: 300 },
+            { id: 'dragon',      name: 'Ejder Savaşçı',   img: 'players/dragon.png',      rarity: 'legendary', free: false, cost: 1200 },
+            { id: 'ninja',       name: 'Gölge Ninja',     img: 'players/ninja.png',       rarity: 'epic',   free: false, cost: 800 },
+            { id: 'skull',       name: 'Kafatası Avcısı', img: 'players/skull.png',       rarity: 'epic',   free: false, cost: 900 },
+            { id: 'polarbear',   name: 'Kutup Ayısı',     img: 'players/polarbear.png',   rarity: 'rare',   free: false, cost: 450 },
+            { id: 'lion',        name: 'Orman Aslanı',    img: 'players/lion.png',        rarity: 'epic',   free: false, cost: 850 },
+            { id: 'croc',        name: 'Timsah Zırhlı',   img: 'players/croc.png',        rarity: 'rare',   free: false, cost: 400 },
+            { id: 'frog',        name: 'Kral Kurbağa',    img: 'players/frog.png',        rarity: 'rare',   free: false, cost: 350 },
+            { id: 'phoenix',     name: 'Anka Kuşu',       img: 'players/phoenix.png',     rarity: 'legendary', free: false, cost: 1500 },
+            { id: 'robot',       name: 'Sibernetik Robot',img: 'players/robot.png',       rarity: 'epic',   free: false, cost: 1000 },
+            { id: 'panda',       name: 'Usta Panda',      img: 'players/panda.png',       rarity: 'rare',   free: false, cost: 500 },
+            { id: 'shark',       name: 'Okyanus Köpekbalığı', img: 'players/shark.png',   rarity: 'epic',   free: false, cost: 950 },
+            { id: 'rabbit',      name: 'Fırtına Tavşan',  img: 'players/rabbit.png',      rarity: 'rare',   free: false, cost: 400 },
+            { id: 'penguin',     name: 'Buz Pengueni',    img: 'players/penguin.png',     rarity: 'common', free: false, cost: 200 },
+            { id: 'octopus',     name: 'Derin Ahtapot',   img: 'players/octopus.png',     rarity: 'epic',   free: false, cost: 900 },
+            { id: 'yeti',        name: 'Karlı Dağ Yetisi',img: 'players/yeti.png',        rarity: 'epic',   free: false, cost: 850 },
+            { id: 'kiz_ates',    name: 'Ateş Büyücüsü',   img: 'players/kiz_ates.png',    rarity: 'legendary', free: false, cost: 1400 },
+            { id: 'kiz_buz',     name: 'Buz Kraliçesi',   img: 'players/kiz_buz.png',     rarity: 'legendary', free: false, cost: 1400 },
+            { id: 'kiz_samurai', name: 'Onurlu Samuray',  img: 'players/kiz_samurai.png', rarity: 'legendary', free: false, cost: 1600 },
+            { id: 'kiz_peri',    name: 'Orman Perisi',    img: 'players/kiz_peri.png',    rarity: 'legendary', free: false, cost: 1800 },
+            { id: 'kiz_neon',    name: 'Siber Neon',      img: 'players/kiz_neon.png',    rarity: 'legendary', free: false, cost: 2000 },
+            { id: 'kiz_vampir',  name: 'Gece Vampiri',    img: 'players/kiz_vampir.png',  rarity: 'legendary', free: false, cost: 2200 },
+            { id: 'kiz_orman',   name: 'Orman Muhafızı',  img: 'players/kiz_orman.png',   rarity: 'legendary', free: false, cost: 1500 },
+            { id: 'kiz_deniz',   name: 'Deniz Savaşçısı', img: 'players/kiz_deniz.png',   rarity: 'legendary', free: false, cost: 1600 },
+            { id: 'kiz_sakura',  name: 'Sakura Çiçeği',   img: 'players/kiz_sakura.png',  rarity: 'legendary', free: false, cost: 1700 },
+            { id: 'kiz_karanlik',name: 'Karanlık Cadı',   img: 'players/kiz_karanlik.png',rarity: 'legendary', free: false, cost: 2400 }
+        ];
+
+        // Oyun İçi El/Kol Renkleri Haritası (play.html ile %100 aynı)
+        const SKIN_ARM_COLORS = {
+            default:'#c4966a', panda:'#e8e8e8', fox:'#e06020', wolf:'#667788',
+            rabbit:'#ccccdd', croc:'#3a7a28', frog:'#55cc44', polarbear:'#ddeeff',
+            penguin:'#333344', shark:'#6688aa', lion:'#e8b040', dragon:'#2a6020',
+            skull:'#d8d4cc', ninja:'#1a1a22', robot:'#aabbcc', phoenix:'#cc4400',
+            yeti:'#aaccee', octopus:'#aa44ee',
+            kiz_sakura:'#f5c8d8', kiz_deniz:'#50c8b8', kiz_ates:'#c83000', kiz_buz:'#b8e8ff',
+            kiz_orman:'#78bc40', kiz_vampir:'#3a0050', kiz_neon:'#100820',
+            kiz_samurai:'#4a0808', kiz_karanlik:'#150830', kiz_peri:'#ffb8cc'
+        };
+
+        // Kılıç Görünümleri (weapons/sword-tier-*.png)
+        const REAL_SWORDS = [
+            { id: 'ki_tier_0', name: 'Temel Kılıç',       img: 'weapons/sword-tier-0.png', tier: 0, cost: 0,    free: true,  rarity: 'common' },
+            { id: 'ki_tier_1', name: 'Demir Kılıç',       img: 'weapons/sword-tier-1.png', tier: 1, cost: 200,  free: false, rarity: 'common' },
+            { id: 'ki_tier_2', name: 'Gümüş Kılıç',       img: 'weapons/sword-tier-2.png', tier: 2, cost: 450,  free: false, rarity: 'rare' },
+            { id: 'ki_tier_3', name: 'Altın Kılıç',       img: 'weapons/sword-tier-3.png', tier: 3, cost: 750,  free: false, rarity: 'rare' },
+            { id: 'ki_tier_4', name: 'Obsidyen Kılıç',    img: 'weapons/sword-tier-4.png', tier: 4, cost: 1100, free: false, rarity: 'epic' },
+            { id: 'ki_tier_5', name: 'Ejder Dişi Kılıç',  img: 'weapons/sword-tier-5.png', tier: 5, cost: 1600, free: false, rarity: 'epic' },
+            { id: 'ki_tier_6', name: 'Tanrı Kılıcı',      img: 'weapons/sword-tier-6.png', tier: 6, cost: 2500, free: false, rarity: 'legendary' }
+        ];
+
+        // Balta Görünümleri (weapons/axe-tier-*.png)
+        const REAL_AXES = [
+            { id: 'ba_tier_0', name: 'Temel Balta',       img: 'weapons/axe-tier-0.png', tier: 0, cost: 0,    free: true,  rarity: 'common' },
+            { id: 'ba_tier_1', name: 'Demir Balta',       img: 'weapons/axe-tier-1.png', tier: 1, cost: 200,  free: false, rarity: 'common' },
+            { id: 'ba_tier_2', name: 'Gümüş Balta',       img: 'weapons/axe-tier-2.png', tier: 2, cost: 450,  free: false, rarity: 'rare' },
+            { id: 'ba_tier_3', name: 'Altın Balta',       img: 'weapons/axe-tier-3.png', tier: 3, cost: 750,  free: false, rarity: 'rare' },
+            { id: 'ba_tier_4', name: 'Obsidyen Balta',    img: 'weapons/axe-tier-4.png', tier: 4, cost: 1100, free: false, rarity: 'epic' },
+            { id: 'ba_tier_5', name: 'Ejder Yıkıcı Balta',img: 'weapons/axe-tier-5.png', tier: 5, cost: 1600, free: false, rarity: 'epic' },
+            { id: 'ba_tier_6', name: 'Berserker Balta',   img: 'weapons/axe-tier-6.png', tier: 6, cost: 2500, free: false, rarity: 'legendary' }
+        ];
+
+        const ALL_ITEMS_MAP = {
+            deriler: REAL_SKINS,
+            kiliclar: REAL_SWORDS,
+            baltalar: REAL_AXES
+        };
+
+        const RANKS = ['Tohum', 'Taş', 'Köylü', 'Acemi', 'Savaşçı', 'Muhafız', 'Ateş Efendisi', 'Kristal', 'Fırtına', 'Gece Hanı', 'Efsane', 'Tanrısal'];
+
+        /* ════════════════════════════════════════════════════════════════
+           2. DURUM YÖNETİMİ & RESİM ÖNBELLEĞİ
+        ════════════════════════════════════════════════════════════════ */
+        let _authToken = localStorage.getItem('fb_auth_token') || null;
+        let _authUser  = JSON.parse(localStorage.getItem('fb_auth_user') || 'null');
+        let _currentSkin = localStorage.getItem('fb_skin') || 'wolf';
+        let _equippedWeapon = localStorage.getItem('fb_weapon_skin') || 'ki_tier_0';
+        
+        let _cosmeticTab = 'deriler';
+        let _shopTab = 'deriler';
+        
+        let _cosmeticPreviewItem = null;
+        let _shopPreviewItem = null;
+        let _animFrame = 0;
+
+        const _IMAGE_CACHE = new Map();
+        function getLoadedImage(src) {
+            if (_IMAGE_CACHE.has(src)) return _IMAGE_CACHE.get(src);
+            const img = new Image();
+            img.src = src;
+            _IMAGE_CACHE.set(src, img);
+            return img;
+        }
+
+        REAL_SKINS.forEach(s => getLoadedImage(s.img));
+        REAL_SWORDS.forEach(s => getLoadedImage(s.img));
+        REAL_AXES.forEach(s => getLoadedImage(s.img));
+
+        function getPlayerGold() {
+            return parseInt(localStorage.getItem('fb_gold') || '1500', 10);
+        }
+        function setPlayerGold(g) {
+            localStorage.setItem('fb_gold', Math.max(0, g));
+            updateGoldDisplays();
+        }
+        function getOwnedItems() {
+            return JSON.parse(localStorage.getItem('fb_acc_owned') || '[]');
+        }
+        function isItemOwned(item) {
+            if (!item) return false;
+            if (item.free || item.cost === 0) return true;
+            return getOwnedItems().includes(item.id);
+        }
+
+        function updateGoldDisplays() {
+            const gold = getPlayerGold();
+            const hg = document.getElementById('header-gold');
+            if (hg) hg.textContent = gold.toLocaleString();
+            const sg = document.getElementById('shop-gold-display');
+            if (sg) sg.textContent = gold.toLocaleString();
+            const pg = document.getElementById('prof-coins');
+            if (pg) pg.textContent = gold.toLocaleString();
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           3. SES MOTORU
+        ════════════════════════════════════════════════════════════════ */
+        let _audioCtx = null;
+        function getAudioContext() {
+            if (!_audioCtx) {
+                const AudioClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioClass) _audioCtx = new AudioClass();
+            }
+            if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
+            return _audioCtx;
+        }
+
+        function playSfx(type) {
+            if (localStorage.getItem('fb_sfx_muted') === 'true') return;
+            const vol = parseInt(localStorage.getItem('fb_sfx_vol') || '80', 10) / 100;
+            if (vol <= 0) return;
+
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                const now = ctx.currentTime;
+                if (type === 'click') {
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.06);
+                    gain.gain.setValueAtTime(0.3 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+                    osc.start(now);
+                    osc.stop(now + 0.06);
+                } else if (type === 'equip') {
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(850, now + 0.12);
+                    gain.gain.setValueAtTime(0.35 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'buy') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.setValueAtTime(780, now + 0.08);
+                    gain.gain.setValueAtTime(0.4 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'pop') {
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(700, now + 0.08);
+                    gain.gain.setValueAtTime(0.3 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                }
+            } catch (e) {}
+        }
+
+        function toggleAudioMute() {
+            const isMuted = localStorage.getItem('fb_sfx_muted') === 'true';
+            localStorage.setItem('fb_sfx_muted', !isMuted);
+            localStorage.setItem('fb_music_muted', !isMuted);
+            updateAudioUI();
+            triggerToast(isMuted ? 'Ses Açıldı' : 'Ses Kapatıldı', isMuted ? 'fa-volume-high' : 'fa-volume-xmark');
+        }
+
+        function updateAudioUI() {
+            const isMuted = localStorage.getItem('fb_sfx_muted') === 'true';
+            const icon = document.getElementById('sound-icon');
+            if (icon) {
+                icon.className = isMuted ? 'fa-solid fa-volume-xmark text-red-400 text-base drop-shadow-md' : 'fa-solid fa-volume-high text-white text-base drop-shadow-md';
+            }
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           4. TOAST VE MODAL YÖNETİMİ
+        ════════════════════════════════════════════════════════════════ */
+        const ALL_MODALS = ['loginModal', 'registerModal', 'profileModal', 'settingsModal', 'serverModal', 'cosmeticsModal', 'shopModal', 'leadersModal', 'challengesModal', 'partyModal', 'clanModal', 'helpModal', 'newsModal'];
+
+        function openModal(id) {
+            document.getElementById('modalOverlay').classList.remove('hidden');
+            ALL_MODALS.forEach(m => {
+                const el = document.getElementById(m);
+                if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+            });
+            const target = document.getElementById(id);
+            if (target) {
+                target.classList.remove('hidden');
+                target.classList.add('flex');
+            }
+            if (id === 'leadersModal') loadLeaderboard();
+            if (id === 'cosmeticsModal') renderCosmeticsOwnedGrid();
+            if (id === 'shopModal') renderShopAllGrid();
+            if (id === 'profileModal') updateProfileModalData();
+        }
+
+        function closeAllModals() {
+            document.getElementById('modalOverlay').classList.add('hidden');
+            ALL_MODALS.forEach(m => {
+                const el = document.getElementById(m);
+                if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+            });
+        }
+
+        function triggerToast(message, iconClass = 'fa-info-circle') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast flex items-center gap-2.5';
+            toast.innerHTML = `<i class="fa-solid ${iconClass} text-[#F7C02D] text-lg"></i> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                if (container.contains(toast)) container.removeChild(toast);
+            }, 2500);
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           5. SUNUCU & PING
+        ════════════════════════════════════════════════════════════════ */
+        function pingServer() {
+            const t0 = performance.now();
+            fetch('/api/health')
+                .then(r => r.json())
+                .then(d => {
+                    const ping = Math.max(4, Math.round(performance.now() - t0));
+                    const pingText = ping + 'ms';
+                    const hp = document.getElementById('header-ping');
+                    if (hp) hp.textContent = pingText;
+                    const mp = document.getElementById('modal-server-ping');
+                    if (mp) mp.textContent = pingText;
+                    const mo = document.getElementById('modal-online-text');
+                    if (mo) mo.textContent = `Aktif Oyuncu: ${d.online || 1} | Gecikme: ${pingText} (Ultra Hızlı)`;
+                })
+                .catch(() => {
+                    const hp = document.getElementById('header-ping');
+                    if (hp) hp.textContent = '14ms';
+                });
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           6. AUTH & PROFİL
+        ════════════════════════════════════════════════════════════════ */
+        function checkAuthStatus() {
+            if (_authToken && _authUser) {
+                document.getElementById('header-guest-view').classList.add('hidden');
+                document.getElementById('header-user-view').classList.remove('hidden');
+                document.getElementById('header-user-view').classList.add('flex');
+                
+                const hu = document.getElementById('header-username');
+                if (hu) hu.textContent = _authUser.username;
+                const hr = document.getElementById('header-rank');
+                if (hr) hr.textContent = `Lv.${(_authUser.rankId || 0) + 1} ${RANKS[_authUser.rankId || 0] || 'Savaşçı'}`;
+                
+                const ni = document.getElementById('name-input');
+                if (ni && !ni.value) ni.value = _authUser.username;
+
+                const avi = document.getElementById('header-avatar-img');
+                if (avi) avi.src = `players/${_currentSkin}.png`;
+            } else {
+                document.getElementById('header-guest-view').classList.remove('hidden');
+                document.getElementById('header-guest-view').classList.add('flex');
+                document.getElementById('header-user-view').classList.add('hidden');
+            }
+            updateGoldDisplays();
+        }
+
+        async function handleLogin() {
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value;
+            if (!u || !p) { triggerToast('Lütfen bilgileri eksiksiz doldurun.', 'fa-triangle-exclamation'); return; }
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+                const data = await res.json();
+                if (res.ok && data.token) {
+                    _authToken = data.token;
+                    _authUser = data.user;
+                    localStorage.setItem('fb_auth_token', _authToken);
+                    localStorage.setItem('fb_auth_user', JSON.stringify(_authUser));
+                    if (_authUser.coins != null) setPlayerGold(_authUser.coins);
+                    
+                    document.getElementById('name-input').value = _authUser.username;
+                    localStorage.setItem('fb_name', _authUser.username);
+                    
+                    closeAllModals();
+                    checkAuthStatus();
+                    triggerToast(`Hoş geldin, ${_authUser.username}!`, 'fa-circle-check');
+                    playSfx('buy');
+                } else {
+                    triggerToast(data.error || 'Giriş yapılamadı.', 'fa-circle-xmark');
+                }
+            } catch (err) {
+                triggerToast('Sunucuya bağlanılamadı.', 'fa-circle-xmark');
+            }
+        }
+
+        async function handleRegister() {
+            const u = document.getElementById('reg-username').value.trim();
+            const p = document.getElementById('reg-password').value;
+            const e = document.getElementById('reg-email').value.trim();
+            if (u.length < 3 || p.length < 4) {
+                triggerToast('Kullanıcı adı min 3, şifre min 4 karakter olmalı.', 'fa-triangle-exclamation');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p, email: e })
+                });
+                const data = await res.json();
+                if (res.ok && data.token) {
+                    _authToken = data.token;
+                    _authUser = data.user;
+                    localStorage.setItem('fb_auth_token', _authToken);
+                    localStorage.setItem('fb_auth_user', JSON.stringify(_authUser));
+                    
+                    const newGold = Math.max(1800, (data.user?.coins || 1500));
+                    setPlayerGold(newGold);
+                    
+                    document.getElementById('name-input').value = _authUser.username;
+                    localStorage.setItem('fb_name', _authUser.username);
+                    
+                    closeAllModals();
+                    checkAuthStatus();
+                    triggerToast(`Tebrikler! +300 🪙 Altın Hesabına Yüklendi!`, 'fa-sparkles');
+                    playSfx('buy');
+                } else {
+                    triggerToast(data.error || 'Kayıt başarısız.', 'fa-circle-xmark');
+                }
+            } catch (err) {
+                triggerToast('Sunucu hatası.', 'fa-circle-xmark');
+            }
+        }
+
+        function handleLogout() {
+            if (_authToken) {
+                fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + _authToken } }).catch(() => {});
+            }
+            _authToken = null;
+            _authUser = null;
+            localStorage.removeItem('fb_auth_token');
+            localStorage.removeItem('fb_auth_user');
+            closeAllModals();
+            checkAuthStatus();
+            triggerToast('Oturum kapatıldı.', 'fa-right-from-bracket');
+            playSfx('click');
+        }
+
+        const RANK_XP_THRESHOLDS = [0, 500, 1500, 3500, 7000, 12000, 20000, 35000, 60000, 100000, 180000, 300000];
+
+        function getPlayerTotalXp() {
+            if (_authUser && typeof _authUser.xp === 'number') return _authUser.xp;
+            return parseInt(localStorage.getItem('fb_user_xp') || localStorage.getItem('fb_total_xp') || '0', 10);
+        }
+
+        function getRankIdByXp(xp) {
+            let r = 0;
+            for (let i = 0; i < RANK_XP_THRESHOLDS.length; i++) {
+                if (xp >= RANK_XP_THRESHOLDS[i]) r = i;
+                else break;
+            }
+            return r;
+        }
+
+        async function updateProfileModalData() {
+            if (_authToken) {
+                try {
+                    const res = await fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + _authToken } });
+                    if (res.ok) {
+                        const pData = await res.json();
+                        if (pData.user) {
+                            _authUser = pData.user;
+                            localStorage.setItem('fb_auth_user', JSON.stringify(pData.user));
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            const totalXp = getPlayerTotalXp();
+            const rankId = getRankIdByXp(totalXp);
+            const currentRankName = RANKS[rankId] || 'Tohum';
+            const nextRankName = RANKS[Math.min(rankId + 1, 11)];
+            const currentBase = RANK_XP_THRESHOLDS[rankId];
+            const nextBase = RANK_XP_THRESHOLDS[Math.min(rankId + 1, 11)];
+            
+            const progressInRank = totalXp - currentBase;
+            const neededInRank = rankId >= 11 ? 1 : (nextBase - currentBase);
+            const pct = rankId >= 11 ? 100 : Math.min(100, Math.max(0, Math.round((progressInRank / neededInRank) * 100)));
+            const neededToNext = Math.max(0, nextBase - totalXp);
+
+            const u = _authUser || { 
+                username: document.getElementById('name-input')?.value || 'Misafir', 
+                kills: parseInt(localStorage.getItem('fb_total_kills')||'0', 10), 
+                deaths: parseInt(localStorage.getItem('fb_total_deaths')||'0', 10), 
+                score: parseInt(localStorage.getItem('fb_best_score')||'0', 10), 
+                bestScore: parseInt(localStorage.getItem('fb_best_score')||'0', 10),
+                games: parseInt(localStorage.getItem('fb_total_games')||'0', 10),
+                gamesPlayed: parseInt(localStorage.getItem('fb_total_games')||'0', 10),
+                coins: getPlayerGold()
+            };
+            
+            document.getElementById('prof-username').textContent = u.username;
+            document.getElementById('prof-rank-name').textContent = `Lv.${rankId + 1} ${currentRankName}`;
+            
+            if (rankId >= 11) {
+                document.getElementById('prof-xp-text').textContent = `${totalXp.toLocaleString()} XP (MAKSİMUM SEVİYE)`;
+                document.getElementById('prof-remaining-xp').textContent = `En yüksek rütbeye ulaştın! 👑`;
+            } else {
+                document.getElementById('prof-xp-text').textContent = `${totalXp.toLocaleString()} / ${nextBase.toLocaleString()} XP (${pct}%)`;
+                document.getElementById('prof-remaining-xp').textContent = `Sonraki Seviye (${nextRankName}) için: ${neededToNext.toLocaleString()} XP kaldı`;
+            }
+            document.getElementById('prof-xp-bar').style.width = pct + '%';
+            
+            document.getElementById('prof-kills').textContent = (u.kills || 0).toLocaleString();
+            document.getElementById('prof-deaths').textContent = (u.deaths || 0).toLocaleString();
+            const kd = u.deaths ? ((u.kills || 0) / u.deaths).toFixed(2) : (u.kills || 0).toFixed(2);
+            document.getElementById('prof-kd').textContent = kd;
+            document.getElementById('prof-best-score').textContent = (u.bestScore || u.score || 0).toLocaleString();
+            document.getElementById('prof-games').textContent = (u.gamesPlayed || u.games || 0).toLocaleString();
+            document.getElementById('prof-coins').textContent = (u.coins != null ? u.coins : getPlayerGold()).toLocaleString();
+
+            const pImg = document.getElementById('prof-avatar-img');
+            if (pImg) pImg.src = `players/${_currentSkin}.png`;
+
+            const hr = document.getElementById('header-rank');
+            if (hr) hr.textContent = `Lv.${rankId + 1} ${currentRankName}`;
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           7. COSMETICS (ENVANTER - SADECE SAHİP OLUNAN EŞYALAR)
+        ════════════════════════════════════════════════════════════════ */
+        function openCosmeticsModal() {
+            openModal('cosmeticsModal');
+            setCosmeticsTab(_cosmeticTab);
+        }
+
+        function setCosmeticsTab(cat) {
+            _cosmeticTab = cat;
+            document.querySelectorAll('#cosmeticsModal .tab-btn').forEach(btn => {
+                if (btn.dataset.cat === cat) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            renderCosmeticsOwnedGrid();
+            playSfx('click');
+        }
+
+        function renderCosmeticsOwnedGrid() {
+            const grid = document.getElementById('cosmetic-owned-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            const allItems = ALL_ITEMS_MAP[_cosmeticTab] || [];
+            // SADECE SAHİP OLUNANLARI FİLTRELE
+            const ownedItems = allItems.filter(item => isItemOwned(item));
+
+            if (ownedItems.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-10 flex flex-col items-center justify-center text-center">
+                        <i class="fa-solid fa-lock text-3xl text-gray-500 mb-2"></i>
+                        <span class="font-io text-white text-sm stroke-text">Henüz bu kategoride kilit açmadın.</span>
+                        <button onclick="openShopModal(); playSfx('click')" class="btn-3d btn-yellow px-4 py-1.5 font-io text-xs stroke-text-dark mt-3">
+                            MAĞAZADAN SATIN AL
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            ownedItems.forEach(item => {
+                let isEquipped = false;
+                if (_cosmeticTab === 'deriler') {
+                    isEquipped = (_currentSkin === item.id);
+                } else {
+                    isEquipped = (_equippedWeapon === item.id);
+                }
+
+                const card = document.createElement('div');
+                card.className = `item-card rarity-${item.rarity || 'common'} ${isEquipped ? 'equipped' : ''}`;
+                card.onclick = () => selectCosmeticPreviewItem(item, _cosmeticTab);
+
+                const imgWrap = document.createElement('div');
+                imgWrap.className = 'w-16 h-16 my-1 flex items-center justify-center relative';
+                const img = document.createElement('img');
+                img.src = item.img;
+                img.className = 'max-w-full max-h-full object-contain drop-shadow-md';
+                img.alt = item.name;
+                imgWrap.appendChild(img);
+                card.appendChild(imgWrap);
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'font-io text-white text-[10px] text-center stroke-text truncate w-full';
+                nameSpan.textContent = item.name;
+                card.appendChild(nameSpan);
+
+                const actionDiv = document.createElement('div');
+                actionDiv.className = 'mt-1.5 w-full';
+                if (isEquipped) {
+                    actionDiv.innerHTML = `<div class="bg-green-600 text-white font-io text-[9px] py-1 rounded text-center stroke-text">EQUIPPED</div>`;
+                } else {
+                    actionDiv.innerHTML = `<button onclick="event.stopPropagation(); equipCosmeticItem('${item.id}', '${_cosmeticTab}')" class="btn-3d btn-yellow w-full py-0.5 font-io text-[9px] stroke-text-dark">EQUIP</button>`;
+                }
+                card.appendChild(actionDiv);
+
+                grid.appendChild(card);
+            });
+
+            if (ownedItems.length > 0) {
+                const currentEquipped = ownedItems.find(i => (_cosmeticTab === 'deriler' ? i.id === _currentSkin : i.id === _equippedWeapon)) || ownedItems[0];
+                selectCosmeticPreviewItem(currentEquipped, _cosmeticTab);
+            }
+        }
+
+        function selectCosmeticPreviewItem(item, cat) {
+            _cosmeticPreviewItem = { item, cat };
+            document.getElementById('cosmetic-preview-name').textContent = item.name;
+            
+            let isEquipped = (_cosmeticTab === 'deriler') ? (_currentSkin === item.id) : (_equippedWeapon === item.id);
+            const statusEl = document.getElementById('cosmetic-preview-status');
+            const btn = document.getElementById('cosmetic-preview-btn');
+            
+            if (isEquipped) {
+                statusEl.textContent = 'EQUIPPED';
+                statusEl.className = 'text-[10px] font-black text-green-400 block mb-1';
+                btn.textContent = 'EQUIPPED';
+                btn.className = 'btn-3d bg-green-700 w-full py-1.5 font-io text-xs stroke-text opacity-75 pointer-events-none';
+            } else {
+                statusEl.textContent = 'UNLOCKED';
+                statusEl.className = 'text-[10px] font-black text-yellow-400 block mb-1';
+                btn.textContent = 'EQUIP';
+                btn.className = 'btn-3d btn-play w-full py-1.5 font-io text-xs stroke-text';
+                btn.onclick = () => equipCosmeticItem(item.id, cat);
+            }
+            playSfx('click');
+        }
+
+        function equipCurrentCosmeticItem() {
+            if (_cosmeticPreviewItem) equipCosmeticItem(_cosmeticPreviewItem.item.id, _cosmeticPreviewItem.cat);
+        }
+
+        function equipCosmeticItem(id, cat) {
+            const shopAcc = JSON.parse(localStorage.getItem('fb_acc_equipped') || '{}');
+            if (cat === 'deriler') {
+                _currentSkin = id;
+                localStorage.setItem('fb_skin', id);
+                const char = REAL_SKINS.find(c => c.id === id);
+                if (char) document.getElementById('active-pet-name').textContent = char.name;
+                const avi = document.getElementById('header-avatar-img');
+                if (avi) avi.src = `players/${_currentSkin}.png`;
+            } else if (cat === 'baltalar') {
+                _equippedWeapon = id;
+                localStorage.setItem('fb_weapon_skin', id);
+                shopAcc.baltalar = id;
+                localStorage.setItem('fb_acc_equipped', JSON.stringify(shopAcc));
+            } else if (cat === 'kiliclar') {
+                _equippedWeapon = id;
+                localStorage.setItem('fb_weapon_skin', id);
+                shopAcc.kiliclar = id;
+                localStorage.setItem('fb_acc_equipped', JSON.stringify(shopAcc));
+            }
+            
+            if (_authToken) {
+                fetch('/api/shop/equip', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _authToken },
+                    body: JSON.stringify({ category: cat, itemId: id })
+                }).catch(() => {});
+            }
+            
+            renderCosmeticsOwnedGrid();
+            if (document.getElementById('shopModal').classList.contains('flex')) renderShopAllGrid();
+            triggerToast('Kuşanıldı! Oyunda görünecek.', 'fa-circle-check');
+            playSfx('equip');
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           8. SHOP (MAĞAZA - SADECE SATIN ALINMAMIŞ EŞYALAR)
+        ════════════════════════════════════════════════════════════════ */
+        function openShopModal() {
+            openModal('shopModal');
+            setShopTab(_shopTab);
+        }
+
+        function setShopTab(cat) {
+            _shopTab = cat;
+            document.querySelectorAll('#shopModal .shop-tab').forEach(btn => {
+                if (btn.dataset.cat === cat) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            renderShopAllGrid();
+            playSfx('click');
+        }
+
+        function renderShopAllGrid() {
+            const grid = document.getElementById('shop-all-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            const items = ALL_ITEMS_MAP[_shopTab] || [];
+            // SATIN ALINMIŞ OLANLAR SHOP'TA GÖZÜKMEZ (SADECE KİLİTLİ OLANLAR GÖZÜKÜR)
+            const unownedItems = items.filter(item => !isItemOwned(item));
+
+            if (unownedItems.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-10 flex flex-col items-center justify-center text-center">
+                        <i class="fa-solid fa-circle-check text-4xl text-[#79D138] mb-2 drop-shadow-md"></i>
+                        <span class="font-io text-white text-base stroke-text">Bu kategorideki tüm eşyaları açtın!</span>
+                        <span class="text-xs font-black text-[#FFDF73] mt-1">Sahip olduğun tüm kostümleri Cosmetics (Envanter) menüsünden kuşanabilirsin.</span>
+                        <button onclick="openCosmeticsModal(); playSfx('click')" class="btn-3d btn-play px-5 py-2 font-io text-xs stroke-text mt-3">
+                            ENVANTERE GİT (COSMETICS)
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            unownedItems.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `item-card rarity-${item.rarity || 'common'}`;
+                card.onclick = () => selectShopPreviewItem(item, _shopTab);
+
+                const imgWrap = document.createElement('div');
+                imgWrap.className = 'w-16 h-16 my-1 flex items-center justify-center relative';
+                const img = document.createElement('img');
+                img.src = item.img;
+                img.className = 'max-w-full max-h-full object-contain drop-shadow-md';
+                img.alt = item.name;
+                imgWrap.appendChild(img);
+                card.appendChild(imgWrap);
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'font-io text-white text-[10px] text-center stroke-text truncate w-full';
+                nameSpan.textContent = item.name;
+                card.appendChild(nameSpan);
+
+                const actionDiv = document.createElement('div');
+                actionDiv.className = 'mt-1.5 w-full';
+                actionDiv.innerHTML = `<button onclick="event.stopPropagation(); buyShopItem('${item.id}', '${_shopTab}', ${item.cost})" class="btn-3d btn-red w-full py-0.5 font-io text-[9px] stroke-text">${item.cost} 🪙</button>`;
+                card.appendChild(actionDiv);
+
+                grid.appendChild(card);
+            });
+
+            if (unownedItems.length > 0) {
+                selectShopPreviewItem(unownedItems[0], _shopTab);
+            }
+        }
+
+        function selectShopPreviewItem(item, cat) {
+            _shopPreviewItem = { item, cat };
+            document.getElementById('shop-preview-name').textContent = item.name;
+            
+            const statusEl = document.getElementById('shop-preview-status');
+            const btn = document.getElementById('shop-preview-btn');
+            
+            if (isEquipped) {
+                statusEl.textContent = 'EQUIPPED';
+                statusEl.className = 'text-[10px] font-black text-green-400 block mb-1';
+                btn.textContent = 'EQUIPPED';
+                btn.className = 'btn-3d bg-green-700 w-full py-1.5 font-io text-xs stroke-text opacity-75 pointer-events-none';
+            } else if (owned) {
+                statusEl.textContent = 'UNLOCKED';
+                statusEl.className = 'text-[10px] font-black text-yellow-400 block mb-1';
+                btn.textContent = 'EQUIP';
+                btn.className = 'btn-3d btn-play w-full py-1.5 font-io text-xs stroke-text';
+                btn.onclick = () => equipCosmeticItem(item.id, cat);
+            } else {
+                statusEl.textContent = `COST: ${item.cost} 🪙`;
+                statusEl.className = 'text-[10px] font-black text-red-400 block mb-1';
+                btn.textContent = `SATIN AL (${item.cost} 🪙)`;
+                btn.className = 'btn-3d btn-red w-full py-1.5 font-io text-xs stroke-text';
+                btn.onclick = () => buyShopItem(item.id, cat, item.cost);
+            }
+            playSfx('click');
+        }
+
+        function buyShopItem(id, cat, cost) {
+            const gold = getPlayerGold();
+            if (gold < cost) {
+                triggerToast('Yetersiz altın! Oyun oynayarak kazan.', 'fa-coins');
+                return;
+            }
+            setPlayerGold(gold - cost);
+            const owned = getOwnedItems();
+            owned.push(id);
+            localStorage.setItem('fb_acc_owned', JSON.stringify(owned));
+            
+            if (_authToken) {
+                fetch('/api/shop/buy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _authToken },
+                    body: JSON.stringify({ itemId: id, cost: cost })
+                }).catch(() => {});
+            }
+
+            equipCosmeticItem(id, cat);
+            renderShopAllGrid();
+            triggerToast('Satın Alındı ve Envantere Eklendi!', 'fa-bag-shopping');
+            playSfx('buy');
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           9. LİDERLİK TABLOSU (100% GERÇEK VERİLER)
+        ════════════════════════════════════════════════════════════════ */
+        let _currentLbTab = 'all';
+
+        function setLeaderboardTab(tab) {
+            _currentLbTab = tab;
+            const btnTop = document.getElementById('lb-tab-top');
+            const btnRecent = document.getElementById('lb-tab-recent');
+            const btnKills = document.getElementById('lb-tab-kills');
+
+            if (btnTop) {
+                btnTop.className = tab === 'all' 
+                    ? 'btn-3d btn-play flex-1 py-1.5 font-io text-[11px] stroke-text' 
+                    : 'btn-3d bg-[#6b4932] border-[2px] border-[#3a1e06] text-white/80 flex-1 py-1.5 font-io text-[11px] stroke-text';
+            }
+            if (btnRecent) {
+                btnRecent.className = tab === 'recent' 
+                    ? 'btn-3d btn-play flex-1 py-1.5 font-io text-[11px] stroke-text' 
+                    : 'btn-3d bg-[#6b4932] border-[2px] border-[#3a1e06] text-white/80 flex-1 py-1.5 font-io text-[11px] stroke-text';
+            }
+            if (btnKills) {
+                btnKills.className = tab === 'kills' 
+                    ? 'btn-3d btn-play flex-1 py-1.5 font-io text-[11px] stroke-text' 
+                    : 'btn-3d bg-[#6b4932] border-[2px] border-[#3a1e06] text-white/80 flex-1 py-1.5 font-io text-[11px] stroke-text';
+            }
+            loadLeaderboard();
+        }
+
+        async function loadLeaderboard() {
+            const container = document.getElementById('leaderboard-list');
+            if (!container) return;
+            container.innerHTML = '<div class="text-center text-white py-8 font-io text-sm"><i class="fa-solid fa-spinner fa-spin mr-2"></i>Sıralama yükleniyor...</div>';
+            
+            try {
+                const res = await fetch(`/api/leaderboard?tab=${_currentLbTab}`);
+                const data = await res.json();
+                const entries = (data && data.entries) ? data.entries : [];
+                
+                container.innerHTML = '';
+                if (entries.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-white/60 py-10 font-io text-xs">
+                            <i class="fa-solid fa-trophy text-2xl mb-2 text-yellow-500/40 block"></i>
+                            Henüz bu kategoride kayıtlı oyuncu skoru bulunmuyor.<br>
+                            <span class="text-yellow-400 font-black">Oyuna gir ve ilk skoru sen kaydet!</span>
+                        </div>
+                    `;
+                    return;
+                }
+
+                entries.slice(0, 50).forEach((entry, idx) => {
+                    const isTop1 = idx === 0;
+                    const isTop2 = idx === 1;
+                    const isTop3 = idx === 2;
+                    const rankId = typeof entry.rankId === 'number' ? entry.rankId : 0;
+                    const rankTitle = entry.rankName || RANKS[rankId] || 'Tohum';
+                    const scoreVal = (typeof entry.score === 'number' ? entry.score : (Number(entry.gold) || 0));
+                    
+                    const row = document.createElement('div');
+                    row.className = `flex items-center justify-between p-2 rounded-xl border ${
+                        isTop1 ? 'bg-yellow-500/25 border-yellow-500/60 shadow' :
+                        isTop2 ? 'bg-slate-400/20 border-slate-400/50' :
+                        isTop3 ? 'bg-amber-700/20 border-amber-700/50' : 'bg-black/25 border-white/10'
+                    }`;
+
+                    let timeBadge = '';
+                    if (_currentLbTab === 'recent' && entry.date) {
+                        const minsAgo = Math.max(1, Math.round((Date.now() - entry.date) / 60000));
+                        timeBadge = minsAgo < 60 ? `${minsAgo} dk önce` : `${Math.floor(minsAgo/60)} sa önce`;
+                    }
+
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="font-io ${isTop1 ? 'text-yellow-400 text-base' : isTop2 ? 'text-slate-300' : isTop3 ? 'text-amber-500' : 'text-gray-400'} stroke-text w-5 text-center flex-shrink-0">
+                                ${idx + 1}.
+                            </span>
+                            ${isTop1 ? '<i class="fa-solid fa-crown text-yellow-400 flex-shrink-0"></i>' : ''}
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-white font-black text-xs sm:text-sm drop-shadow-md truncate max-w-[150px]">${entry.name}</span>
+                                <span class="text-[9px] font-black text-yellow-300/80">Lv.${rankId + 1} ${rankTitle} ${timeBadge ? `• <span class="text-white/50">${timeBadge}</span>` : ''}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0">
+                            <span class="text-green-400 font-black text-[10px]">⚔️ ${entry.kills || 0}</span>
+                            <span class="font-io text-yellow-400 text-xs sm:text-sm stroke-text">${scoreVal.toLocaleString()} 🪙</span>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                container.innerHTML = '<div class="text-center text-red-300 py-6 font-io text-xs">Sıralama verisi alınamadı. Sunucu bağlantısını kontrol edin.</div>';
+            }
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           10. AYARLAR & PARTİ/KLAN
+        ════════════════════════════════════════════════════════════════ */
+        function saveSetting(key, val) {
+            localStorage.setItem(key, val);
+            triggerToast('Ayar Kaydedildi', 'fa-check');
+            playSfx('click');
+        }
+
+        function saveVolumeSetting(type, val) {
+            localStorage.setItem(type === 'sfx' ? 'fb_sfx_vol' : 'fb_music_vol', val);
+            if (type === 'sfx') playSfx('click');
+        }
+
+        function loadSavedSettings() {
+            if (document.getElementById('set-auto-eat')) document.getElementById('set-auto-eat').checked = localStorage.getItem('fb_auto_eat') !== 'false';
+            if (document.getElementById('set-build-snap')) document.getElementById('set-build-snap').checked = localStorage.getItem('fb_build_snap') !== 'false';
+            if (document.getElementById('set-shake')) document.getElementById('set-shake').checked = localStorage.getItem('fb_shake') !== 'false';
+            if (document.getElementById('set-mobile-ctrl')) document.getElementById('set-mobile-ctrl').checked = localStorage.getItem('fb_mobile_controls') !== 'false';
+            if (document.getElementById('set-sfx-vol')) document.getElementById('set-sfx-vol').value = localStorage.getItem('fb_sfx_vol') || '80';
+            if (document.getElementById('set-music-vol')) document.getElementById('set-music-vol').value = localStorage.getItem('fb_music_vol') || '50';
+            if (document.getElementById('set-sfx-mute')) document.getElementById('set-sfx-mute').checked = localStorage.getItem('fb_sfx_muted') !== 'true';
+            if (document.getElementById('set-shadows')) document.getElementById('set-shadows').checked = localStorage.getItem('fb_shadows') !== 'false';
+            if (document.getElementById('set-fps')) document.getElementById('set-fps').checked = localStorage.getItem('fb_fps') !== 'false';
+        }
+
+        function createParty() {
+            const code = Math.random().toString(36).slice(2, 6).toUpperCase();
+            triggerToast(`Parti Oluşturuldu! Kod: ${code}`, 'fa-users');
+            playSfx('buy');
+        }
+        function joinParty() {
+            const c = document.getElementById('party-code-input').value.trim().toUpperCase();
+            if (c.length < 3) { triggerToast('Geçersiz parti kodu', 'fa-triangle-exclamation'); return; }
+            triggerToast(`Partiye Katılınıyor: ${c}`, 'fa-check');
+            playSfx('click');
+        }
+        function createClan() {
+            const tag = document.getElementById('clan-tag-input').value.trim();
+            const name = document.getElementById('clan-name-input').value.trim();
+            if (!tag || !name) { triggerToast('Klan tagı ve ismi gerekli', 'fa-triangle-exclamation'); return; }
+            const gold = getPlayerGold();
+            if (gold < 500) { triggerToast('Klan açmak için 500 🪙 gerekli', 'fa-coins'); return; }
+            setPlayerGold(gold - 500);
+            localStorage.setItem('fb_clan_id', tag);
+            triggerToast(`[${tag}] ${name} Klanı Başarıyla Kuruldu!`, 'fa-shield-halved');
+            playSfx('buy');
+            closeAllModals();
+        }
+        function openDiscord() {
+            window.open('https://discord.gg', '_blank');
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           11. OYUNU BAŞLATMA
+        ════════════════════════════════════════════════════════════════ */
+        function startDirectGame() {
+            const name = (document.getElementById('name-input').value.trim()) || 'Savaşçı';
+            localStorage.setItem('fb_name', name);
+            
+            const btn = document.getElementById('play-btn');
+            const txt = document.getElementById('play-btn-text');
+            if (btn) btn.style.pointerEvents = 'none';
+            if (txt) txt.textContent = 'Loading...';
+            
+            playSfx('pop');
+            triggerToast('Savaş Alanına Bağlanılıyor...', 'fa-play');
+
+            setTimeout(() => {
+                const clanId = localStorage.getItem('fb_clan_id') || '';
+                window.location.href = `play.html?name=${encodeURIComponent(name)}&skin=${encodeURIComponent(_currentSkin)}${clanId ? '&clanId=' + encodeURIComponent(clanId) : ''}&mode=online`;
+            }, 300);
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           12. CANLI VE BİREBİR OYUN İÇİ KARAKTER ÇİZİM MOTORU
+        ════════════════════════════════════════════════════════════════ */
+        const bgCanvas = document.getElementById('bgCanvas');
+        const bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
+        let bgW = window.innerWidth, bgH = window.innerHeight;
+
+        const bgParticles = Array.from({ length: 24 }, () => ({
+            x: Math.random() * bgW,
+            y: Math.random() * bgH,
+            radius: Math.random() * 3 + 1.5,
+            speedY: Math.random() * 0.4 + 0.2,
+            speedX: (Math.random() - 0.5) * 0.3,
+            alpha: Math.random() * 0.6 + 0.2
+        }));
+
+        function resizeBackground() {
+            if (!bgCanvas) return;
+            bgW = bgCanvas.width = window.innerWidth;
+            bgH = bgCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeBackground);
+
+        // OYUN İÇİ İLE %100 BİREBİR VE SAĞA BAKAN ÇİZİM MOTORU (Image 2 ile tam aynı)
+        function drawExactInGamePlayer(ctx, cx, cy, skinId, weaponId, t, scale = 0.7) {
+            const skinImg = getLoadedImage(`players/${skinId}.png`);
+            const armCol = SKIN_ARM_COLORS[skinId] || '#c4966a';
+            
+            // Nefes alma titreşimi
+            const breathe = Math.sin(t * 0.05) * 1.5;
+            
+            ctx.save();
+            ctx.translate(cx, cy + breathe);
+            ctx.scale(scale, scale);
+
+            // 1. Zemin Gölgesi (play.html ile aynı)
+            ctx.fillStyle = 'rgba(0,0,0,0.32)';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 38, 38, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. Silah Resmi (Kılıç / Balta) - play.html _drawWeaponSprite ile %100 aynı (pivotX: 32, pivotY: 130)
+            let weaponSrc = 'weapons/sword-tier-0.png';
+            let weaponKind = 'sword';
+            if (weaponId && weaponId.startsWith('ba_')) {
+                const axeObj = REAL_AXES.find(a => a.id === weaponId);
+                weaponSrc = axeObj ? axeObj.img : 'weapons/axe-tier-0.png';
+                weaponKind = 'axe';
+            } else if (weaponId && weaponId.startsWith('ki_')) {
+                const swordObj = REAL_SWORDS.find(s => s.id === weaponId);
+                weaponSrc = swordObj ? swordObj.img : 'weapons/sword-tier-0.png';
+                weaponKind = 'sword';
+            }
+            const wepImg = getLoadedImage(weaponSrc);
+            if (wepImg && wepImg.complete && wepImg.naturalWidth > 0) {
+                ctx.save();
+                ctx.drawImage(wepImg, -32, -130);
+                ctx.restore();
+            }
+
+            // 3. Eller (play.html ile %100 aynı: sağa doğru uzanan iki el, ince siyah kenarlık ve parmak parlama)
+            for (let _ai = 0; _ai < 2; _ai++) {
+                const ay = _ai === 0 ? -13 : 20, sign = _ai === 0 ? -1 : 1;
+                ctx.save();
+                ctx.translate(30, ay);
+                ctx.fillStyle = armCol;
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3.2; // İnce ve net border
+                ctx.beginPath();
+                ctx.ellipse(6, 0, 18, 13, 0.18 * sign, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // El parlama detayı
+                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.beginPath();
+                ctx.ellipse(2, -3 * sign, 7, 4, 0.2 * sign, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 4. Gövde (play.html _drawCenteredSprite ile %100 aynı - Sağa Bakan Doğal Sprite)
+            if (skinImg && skinImg.complete && skinImg.naturalWidth > 0) {
+                ctx.drawImage(skinImg, -63, -63, 126, 126);
+            } else {
+                ctx.fillStyle = armCol;
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, 35, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function animateMenu() {
+            _animFrame++;
+            
+            // Arka Plan
+            if (bgCtx) {
+                const grd = bgCtx.createRadialGradient(bgW / 2, bgH / 2, 50, bgW / 2, bgH / 2, Math.max(bgW, bgH) * 0.85);
+                grd.addColorStop(0, '#364F24');
+                grd.addColorStop(1, '#1A2810');
+                bgCtx.fillStyle = grd;
+                bgCtx.fillRect(0, 0, bgW, bgH);
+
+                bgParticles.forEach(p => {
+                    p.y -= p.speedY;
+                    p.x += p.speedX;
+                    if (p.y < 0) p.y = bgH;
+                    if (p.x < 0) p.x = bgW;
+                    if (p.x > bgW) p.x = 0;
+
+                    bgCtx.fillStyle = `rgba(180, 240, 70, ${p.alpha * (0.6 + Math.sin(_animFrame * 0.04 + p.x) * 0.4)})`;
+                    bgCtx.beginPath();
+                    bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    bgCtx.fill();
+                });
+            }
+
+            // 1. Ana Ekran Aktif Karakter Canvası (Sağa Bakan, Oyun İçiyle Birebir)
+            const apc = document.getElementById('active-pet-canvas');
+            if (apc) {
+                const actx = apc.getContext('2d');
+                actx.clearRect(0, 0, 86, 86);
+                drawExactInGamePlayer(actx, 36, 54, _currentSkin, _equippedWeapon, _animFrame, 0.42);
+            }
+
+            // 2. Cosmetics (Envanter) Önizleme Canvası (Sağa Bakan)
+            const cpc = document.getElementById('cosmetic-preview-canvas');
+            if (cpc) {
+                const cctx = cpc.getContext('2d');
+                cctx.clearRect(0, 0, 200, 200);
+                const prevSkin = (_cosmeticPreviewItem && _cosmeticPreviewItem.cat === 'deriler') ? _cosmeticPreviewItem.item.id : _currentSkin;
+                const prevWep = (_cosmeticPreviewItem && (_cosmeticPreviewItem.cat === 'baltalar' || _cosmeticPreviewItem.cat === 'kiliclar')) ? _cosmeticPreviewItem.item.id : _equippedWeapon;
+                drawExactInGamePlayer(cctx, 85, 125, prevSkin, prevWep, _animFrame, 0.72);
+            }
+
+            // 3. Shop (Mağaza) Önizleme Canvası (Sağa Bakan)
+            const spc = document.getElementById('shop-preview-canvas');
+            if (spc) {
+                const sctx = spc.getContext('2d');
+                sctx.clearRect(0, 0, 200, 200);
+                const prevSkin = (_shopPreviewItem && _shopPreviewItem.cat === 'deriler') ? _shopPreviewItem.item.id : _currentSkin;
+                const prevWep = (_shopPreviewItem && (_shopPreviewItem.cat === 'baltalar' || _shopPreviewItem.cat === 'kiliclar')) ? _shopPreviewItem.item.id : _equippedWeapon;
+                drawExactInGamePlayer(sctx, 85, 125, prevSkin, prevWep, _animFrame, 0.72);
+            }
+
+            requestAnimationFrame(animateMenu);
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           13. BAŞLANGIÇ YÜKLEMESİ
+        ════════════════════════════════════════════════════════════════ */
+        window.addEventListener('DOMContentLoaded', () => {
+            resizeBackground();
+            loadSavedSettings();
+            updateAudioUI();
+            
+            const savedName = localStorage.getItem('fb_name');
+            if (savedName) document.getElementById('name-input').value = savedName;
+            
+            const currentSkinObj = REAL_SKINS.find(c => c.id === _currentSkin) || REAL_SKINS[0];
+            document.getElementById('active-pet-name').textContent = currentSkinObj.name;
+            
+            checkAuthStatus();
+            pingServer();
+            setInterval(pingServer, 15000);
+            
+            animateMenu();
+        });
+    </script>
+</body>
+</html>

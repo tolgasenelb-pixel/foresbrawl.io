@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ayı PNG Oyun Motoru</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background-color: #0c0e12; color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; touch-action: none; user-select: none;
+        }
+        canvas {
+            display: block;
+            background: radial-gradient(circle at center, #2e3e23 0%, #171f11 100%);
+        }
+        .joystick-zone {
+            position: absolute; width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%; pointer-events: none; display: none;
+            align-items: center; justify-content: center; z-index: 20;
+            transform: translate(-50%, -50%);
+        }
+        .joystick-zone.active { display: flex; }
+        .joystick-knob {
+            width: 50px; height: 50px; background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%; position: absolute; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .attack-btn {
+            position: absolute; bottom: 40px; right: 40px; width: 90px; height: 90px;
+            background: #a83232; color: white; font-weight: bold; font-size: 14px;
+            border: 4px solid #d94141; border-radius: 50%; box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+            z-index: 20; display: flex; align-items: center; justify-content: center;
+            text-align: center; line-height: 1.2; cursor: pointer;
+        }
+        .attack-btn:active { transform: scale(0.9); background: #7a2525; }
+        .info-panel {
+            position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7);
+            color: white; padding: 15px; border-radius: 8px; border: 1px solid #f59e0b; pointer-events: none;
+        }
+        #loadingScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0c0e12; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 100; color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loadingScreen">
+        <h2 style="color: #f59e0b; font-size: 24px; margin-bottom: 5px;">Ayı PNG Assetleri Yükleniyor...</h2>
+        <p id="loadingText" style="color: #aaa;">Lütfen bekleyin.</p>
+    </div>
+
+    <div class="info-panel">
+        <h3 style="margin:0 0 5px 0; color: #f59e0b;">🐻 Ayı PNG Motoru</h3>
+        <p style="margin:0; font-size: 12px; color: #ccc;">Skor: <b id="scoreText" style="color:#facc15">0</b></p>
+        <p style="margin:5px 0 0 0; font-size: 11px; color: #aaa;">Hareket: WASD / Sol Ekran Joystick</p>
+        <p style="margin:2px 0 0 0; font-size: 11px; color: #aaa;">Saldırı: SPACE / Sağ Buton</p>
+    </div>
+
+    <div id="joystickZone" class="joystick-zone"><div id="joystickKnob" class="joystick-knob"></div></div>
+    <div id="attackBtn" class="attack-btn">PENÇE<br>AT</div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // ==========================================
+        // 1. PNG ASSETLERİNİ TANIMLA VE YÜKLE
+        // ==========================================
+        const assetFiles = {
+            govde: 'bear_govde.png',
+            kafa: 'bear_kafa.png',
+            kafa_acik: 'bear_kafa_acik.png',
+            kol: 'bear_kol.png',
+            pence: 'bear_pence.png',
+            bacak: 'bear_bacak.png',
+            kuyruk: 'bear_kuyruk.png',
+            cizik: 'bear_cizik.png'
+        };
+
+        const assets = {};
+        let loadedCount = 0;
+        const totalAssets = Object.keys(assetFiles).length;
+
+        for (let key in assetFiles) {
+            assets[key] = new Image();
+            assets[key].onload = () => {
+                loadedCount++;
+                document.getElementById('loadingText').innerText = `${loadedCount} / ${totalAssets} resim yüklendi.`;
+                if (loadedCount === totalAssets) {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                    initEngine();
+                }
+            };
+            assets[key].onerror = () => {
+                alert(`HATA: "${assetFiles[key]}" dosyası bulunamadı!`);
+            };
+            assets[key].src = assetFiles[key];
+        }
+
+        // ==========================================
+        // 2. OYUN MOTORU
+        // ==========================================
+        function initEngine() {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+            window.addEventListener('resize', resize); resize();
+
+            // Kontroller
+            const keys = {};
+            window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code==='Space') triggerAttack(); });
+            window.addEventListener('keyup', e => keys[e.code] = false);
+
+            let mouse = { x: canvas.width/2, y: canvas.height/2 };
+            window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+            // Dinamik Joystick Kontrolleri
+            let joyVector = {x:0, y:0}; 
+            let activeTouchId = null; 
+            let startPos = {x:0, y:0};
+            
+            const joyZone = document.getElementById('joystickZone'); 
+            const joyKnob = document.getElementById('joystickKnob');
+            const atkBtn = document.getElementById('attackBtn');
+
+            atkBtn.addEventListener('mousedown', e => { e.preventDefault(); triggerAttack(); });
+            atkBtn.addEventListener('touchstart', e => { e.preventDefault(); triggerAttack(); });
+
+            window.addEventListener('touchstart', e => {
+                for (let t of e.changedTouches) {
+                    if (t.clientX < window.innerWidth / 2 && activeTouchId === null) {
+                        activeTouchId = t.identifier;
+                        startPos = { x: t.clientX, y: t.clientY };
+                        joyZone.style.left = t.clientX + 'px';
+                        joyZone.style.top = t.clientY + 'px';
+                        joyZone.classList.add('active');
+                        joyKnob.style.transform = `translate(0px, 0px)`;
+                        joyVector = {x: 0, y: 0};
+                    }
+                }
+            }, {passive: false});
+
+            window.addEventListener('touchmove', e => {
+                if(activeTouchId === null) return;
+                for(let t of e.changedTouches) {
+                    if(t.identifier === activeTouchId) {
+                        e.preventDefault();
+                        let dx = t.clientX - startPos.x; 
+                        let dy = t.clientY - startPos.y;
+                        let dist = Math.hypot(dx, dy); 
+                        let maxDist = 45;
+                        if(dist > maxDist){ 
+                            dx = (dx/dist) * maxDist; 
+                            dy = (dy/dist) * maxDist; 
+                        }
+                        joyKnob.style.transform = `translate(${dx}px, ${dy}px)`; 
+                        joyVector = {x: dx / maxDist, y: dy / maxDist};
+                    }
+                }
+            }, {passive: false});
+
+            window.addEventListener('touchend', e => {
+                for(let t of e.changedTouches) {
+                    if(t.identifier === activeTouchId) { 
+                        activeTouchId = null; 
+                        joyVector = {x:0, y:0}; 
+                        joyZone.classList.remove('active'); 
+                    }
+                }
+            });
+
+            // Efektler
+            class SwipeEffect {
+                constructor(x, y, angle) {
+                    this.x = x; this.y = y; this.angle = angle + (Math.random()-0.5)*0.5; this.life = 1.0;
+                }
+                update() { this.life -= 0.05; }
+                draw(camX, camY) {
+                    if(this.life <= 0) return;
+                    ctx.save(); ctx.translate(this.x - camX, this.y - camY); ctx.rotate(this.angle);
+                    ctx.globalAlpha = this.life;
+                    ctx.drawImage(assets.cizik, -50, -50, 100, 100);
+                    ctx.restore();
+                }
+            }
+            let swipes = []; let hitParticles = [];
+
+            // Düşman Sınıfı
+            class Enemy {
+                constructor(x, y) {
+                    this.x = x; this.y = y; this.hp = 80; this.maxHp = 80; this.angle = Math.random()*Math.PI*2;
+                    this.kb = {x:0, y:0};
+                }
+                update(px, py) {
+                    this.x+=this.kb.x; this.y+=this.kb.y; this.kb.x*=0.85; this.kb.y*=0.85;
+                    let d = Math.hypot(px-this.x, py-this.y);
+                    if(d>60 && d<500) {
+                        let ta = Math.atan2(py-this.y, px-this.x);
+                        let diff = ta - this.angle; while(diff<-Math.PI) diff+=Math.PI*2; while(diff>Math.PI) diff-=Math.PI*2;
+                        this.angle += diff*0.1;
+                        let m = Math.hypot(this.kb.x, this.kb.y)>2 ? 0:1;
+                        this.x += Math.cos(this.angle)*2.5*m; this.y += Math.sin(this.angle)*2.5*m;
+                    }
+                }
+                draw(camX, camY) {
+                    let dx = this.x-camX; let dy = this.y-camY;
+                    ctx.save(); ctx.translate(dx, dy); ctx.rotate(this.angle+Math.PI/2);
+                    ctx.fillStyle='#2b4c7e'; ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.fill();
+                    ctx.fillStyle='#e2b08a'; ctx.beginPath(); ctx.arc(0,-10,10,0,Math.PI*2); ctx.fill();
+                    ctx.restore();
+                    ctx.fillStyle='red'; ctx.fillRect(dx-15, dy-25, (this.hp/this.maxHp)*30, 4);
+                }
+            }
+            let enemies = [];
+
+            // Oyuncu (Ayı)
+            const player = { x: 400, y: 400, angle: 0, speed: 3.5, state: 'idle', aTimer: 0, mTimer: 0, aDur: 55, target: null, hasSwiped: false };
+
+            function triggerAttack() {
+                if(player.state !== 'attack') {
+                    player.state = 'attack'; player.aTimer = 0; player.hasSwiped = false;
+                    let min = 160; player.target = null;
+                    enemies.forEach(e => {
+                        let d = Math.hypot(player.x-e.x, player.y-e.y);
+                        if(d < min) {
+                            let a = Math.atan2(e.y-player.y, e.x-player.x);
+                            let diff = a - player.angle; while(diff<-Math.PI) diff+=Math.PI*2; while(diff>Math.PI) diff-=Math.PI*2;
+                            if(Math.abs(diff) < Math.PI/1.2) { min = d; player.target = e; }
+                        }
+                    });
+                }
+            }
+
+            function gameLoop() {
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+
+                let camX = player.x - canvas.width/2; let camY = player.y - canvas.height/2;
+
+                ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1; ctx.beginPath();
+                for(let x=-(camX%100); x<canvas.width; x+=100) { ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); }
+                for(let y=-(camY%100); y<canvas.height; y+=100) { ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); } ctx.stroke();
+
+                let dx=0, dy=0;
+                if(keys['KeyW']) dy-=1; if(keys['KeyS']) dy+=1; if(keys['KeyA']) dx-=1; if(keys['KeyD']) dx+=1;
+                if(dx===0 && dy===0){ dx=joyVector.x; dy=joyVector.y; }
+
+                let isMv = (dx!==0 || dy!==0);
+                
+                if(player.state === 'attack') {
+                    player.aTimer++; let p = player.aTimer/player.aDur;
+                    
+                    if(p>0.4 && p<0.6) {
+                        player.x+=Math.cos(player.angle)*10; player.y+=Math.sin(player.angle)*10;
+                        
+                        if(p >= 0.45 && !player.hasSwiped) {
+                            player.hasSwiped = true;
+                            let hitX = player.x + Math.cos(player.angle)*50;
+                            let hitY = player.y + Math.sin(player.angle)*50;
+                            if(player.target) { hitX = player.target.x; hitY = player.target.y; }
+                            
+                            swipes.push(new SwipeEffect(hitX, hitY, player.angle));
+
+                            enemies.forEach(e => {
+                                if(Math.hypot(player.x-e.x, player.y-e.y) < 120) {
+                                    e.hp-=40; let a=Math.atan2(e.y-player.y, e.x-player.x);
+                                    e.kb.x=Math.cos(a)*35; e.kb.y=Math.sin(a)*35;
+                                    for(let j=0;j<15;j++) hitParticles.push({x:e.x,y:e.y,vx:(Math.random()-0.5)*15,vy:(Math.random()-0.5)*15,l:1});
+                                }
+                            });
+                        }
+                    }
+                    if(player.aTimer >= player.aDur) player.state='idle';
+                } else if(isMv) {
+                    if(Math.abs(dx)===1 && Math.abs(dy)===1 && joyVector.x===0){dx*=0.707; dy*=0.707;}
+                    player.x+=dx*player.speed; player.y+=dy*player.speed; player.state='walk'; player.mTimer+=0.25;
+                } else { player.state='idle'; player.mTimer+=0.05; }
+
+                player.x = Math.max(50, Math.min(2000, player.x)); player.y = Math.max(50, Math.min(2000, player.y));
+
+                let tA = player.angle;
+                if(player.state==='attack' && player.target) tA = Math.atan2(player.target.y-player.y, player.target.x-player.x);
+                else if(activeTouchId!==null && isMv) tA = Math.atan2(dy,dx);
+                else if(activeTouchId===null) tA = Math.atan2(mouse.y-canvas.height/2, mouse.x-canvas.width/2);
+                
+                let aD = tA - player.angle; while(aD<-Math.PI) aD+=Math.PI*2; while(aD>Math.PI) aD-=Math.PI*2;
+                player.angle += aD * ((player.state==='attack' && player.aTimer<20) ? 0.3 : 0.15);
+
+                for(let i=enemies.length-1; i>=0; i--) {
+                    enemies[i].update(player); enemies[i].draw(camX, camY);
+                    if(enemies[i].hp<=0) {
+                        enemies.splice(i,1); score+=1; document.getElementById('scoreText').innerText=score;
+                        enemies.push(new Enemy(player.x+(Math.random()-0.5)*800, player.y+(Math.random()-0.5)*800));
+                    }
+                }
+
+                for(let i=hitParticles.length-1; i>=0; i--) {
+                    let pt = hitParticles[i]; pt.x+=pt.vx; pt.y+=pt.vy; pt.l-=0.05;
+                    if(pt.l<=0){ hitParticles.splice(i,1); continue; }
+                    ctx.fillStyle=`rgba(220, 38, 38, ${pt.l})`; ctx.beginPath(); ctx.arc(pt.x-camX, pt.y-camY, 4, 0, Math.PI*2); ctx.fill();
+                }
+
+                // ==========================================
+                // AYI ÇİZİM MOTORU (PNG BİRLEŞTİRME VE IK)
+                // ==========================================
+                ctx.save();
+                ctx.translate(player.x - camX, player.y - camY);
+                ctx.rotate(player.angle + Math.PI/2);
+
+                let aProg = player.state==='attack' ? player.aTimer/player.aDur : 0;
+                
+                let bodySway = isMv ? Math.sin(player.mTimer)*0.1 : 0;
+                let bY = 0; let aLift = 0; let aSmash = 0; let hY = 0; let roar = false;
+
+                if(player.state==='attack') {
+                    if(aProg<0.4) {
+                        let w = Math.sin((aProg/0.4)*(Math.PI/2));
+                        bY = w*8; aLift = w*30; hY = -w*5;
+                    } else if(aProg<0.6) {
+                        let s = (aProg-0.4)/0.2; let strike = Math.sin(s*Math.PI);
+                        if(strike < 0) strike = 0;
+                        bY = 8-(strike*18); aLift = 30*(1-s); aSmash = strike; hY = strike*15; roar = true;
+                    } else {
+                        let r = (aProg-0.6)/0.4; bY = -10*(1-Math.pow(1-r, 2));
+                    }
+                } else if(isMv) { bY = Math.abs(Math.sin(player.mTimer*2))*3; }
+                else { bY = Math.sin(player.mTimer)*1.5; }
+
+                ctx.rotate(bodySway);
+
+                ctx.fillStyle = `rgba(0,0,0,${0.5 - (aLift*0.01)})`;
+                ctx.beginPath(); ctx.ellipse(0, 10+bY, 40, 55, 0, 0, Math.PI*2); ctx.fill();
+
+                for(let s=-1; s<=1; s+=2) {
+                    ctx.save();
+                    let lMv = isMv ? Math.sin(player.mTimer + (s===1?Math.PI:0))*12 : 0;
+                    ctx.translate(s*20 + (s*aLift*0.2), 35 + bY + lMv); 
+                    if(s===-1) ctx.scale(-1,1);
+                    ctx.drawImage(assets.bacak, -30, -30, 60, 60);
+                    ctx.restore();
+                }
+
+                ctx.save(); ctx.translate(0, 48 + bY); ctx.drawImage(assets.kuyruk, -20, -20, 40, 40); ctx.restore();
+
+                let targetRelX = 0; let targetRelY = 0;
+                if(player.state === 'attack' && player.target) {
+                    let dX = player.target.x - player.x; let dY = player.target.y - player.y;
+                    let cosA = Math.cos(-(player.angle + Math.PI/2)); let sinA = Math.sin(-(player.angle + Math.PI/2));
+                    targetRelX = dX * cosA - dY * sinA;
+                    targetRelY = dX * sinA + dY * cosA; 
+                }
+
+                for(let s=-1; s<=1; s+=2) {
+                    ctx.save();
+                    ctx.translate(s*24, -12 + bY); // Omuz
+                    
+                    let handX = s*5; let handY = 25 + aLift;
+                    if(player.state === 'walk') handY += Math.sin(player.mTimer + (s===-1?Math.PI:0))*15;
+                    
+                    if(player.state === 'attack' && aSmash > 0) {
+                        handY -= aSmash * 40; 
+                        if(player.target) {
+                            handX += targetRelX * aSmash * 0.7; 
+                            handX -= s * aSmash * 15; 
+                        } else {
+                            handX -= s * aSmash * 15; 
+                        }
+                    }
+
+                    let armLen = Math.hypot(handX, handY);
+                    let armAng = Math.atan2(handY, handX) - Math.PI/2; 
+
+                    ctx.save(); ctx.rotate(armAng); ctx.scale(1, armLen / 30);
+                    if(s===-1) ctx.scale(-1,1);
+                    ctx.drawImage(assets.kol, -15, 0, 30, 30);
+                    ctx.restore();
+                    
+                    ctx.save(); ctx.translate(handX, handY);
+                    let pawAng = s*0.2; if(aSmash > 0) pawAng = -s * 0.8 * aSmash;
+                    ctx.rotate(pawAng);
+                    if(s===-1) ctx.scale(-1,1);
+                    ctx.drawImage(assets.pence, -25, -20, 50, 50);
+                    ctx.restore();
+                    
+                    ctx.restore();
+                }
+
+                ctx.save(); ctx.translate(0, bY);
+                ctx.drawImage(assets.govde, -60, -60, 120, 120);
+                
+                ctx.translate(0, -25 + hY);
+                let kafaImg = roar ? assets.kafa_acik : assets.kafa;
+                ctx.drawImage(kafaImg, -40, -40, 80, 80);
+                
+                ctx.restore(); 
+                ctx.restore();
+
+                for(let i=swipes.length-1; i>=0; i--) {
+                    swipes[i].update(); swipes[i].draw(camX, camY);
+                    if(swipes[i].life <= 0) swipes.splice(i,1);
+                }
+
+                requestAnimationFrame(gameLoop);
+            }
+
+            for(let i=0; i<5; i++) enemies.push(new Enemy(player.x + (Math.random()-0.5)*800, player.y + (Math.random()-0.5)*800));
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>

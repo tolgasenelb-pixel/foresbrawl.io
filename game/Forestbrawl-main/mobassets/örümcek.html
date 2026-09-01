@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Düzeltilmiş Örümcek PNG Motoru</title>
+    <style>
+        body {
+            margin: 0; padding: 0; background-color: #0c0e12; color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; touch-action: none; user-select: none;
+        }
+        canvas {
+            display: block;
+            background: radial-gradient(circle at center, #1b2029 0%, #0c0e12 100%);
+        }
+        .joystick-zone {
+            position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%; opacity: 0.5; z-index: 20;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .joystick-zone.active { opacity: 1; background: rgba(255, 255, 255, 0.1); }
+        .joystick-knob {
+            width: 50px; height: 50px; background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%; position: absolute; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .attack-btn {
+            position: absolute; bottom: 40px; right: 40px; width: 90px; height: 90px;
+            background: #932c28; color: white; font-weight: bold; font-size: 14px;
+            border: 4px solid #c23a3a; border-radius: 50%; box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+            z-index: 20; display: flex; align-items: center; justify-content: center;
+            text-align: center; line-height: 1.2; cursor: pointer;
+        }
+        .attack-btn:active { transform: scale(0.9); background: #5c191a; }
+        .info-panel {
+            position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.7);
+            color: white; padding: 15px; border-radius: 8px; border: 1px solid #e53e3e; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="info-panel">
+        <h3 style="margin:0 0 5px 0; color: #e53e3e;">🕷️ Düzeltilmiş PNG Motoru</h3>
+        <p style="margin:0; font-size: 12px; color: #ccc;">Skor: <b id="scoreText" style="color:#facc15">0</b></p>
+        <p style="margin:5px 0 0 0; font-size: 11px; color: #aaa;">Anatomi Düzeltildi (Kopma Yok)</p>
+    </div>
+
+    <div id="joystickZone" class="joystick-zone"><div id="joystickKnob" class="joystick-knob"></div></div>
+    <div id="attackBtn" class="attack-btn">AĞ AT<br>& ISIR</div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // ==========================================
+        // 1. PNG ASSETLERİNİ YÜKLE
+        // ==========================================
+        const assets = {
+            abdomen: new Image(),
+            kafa: new Image(),
+            bacak: new Image(),
+            pedipalp: new Image(),
+            dis: new Image(),
+            ag_mermi: new Image(),
+            ag_tuzak: new Image()
+        };
+
+        assets.abdomen.src = 'spider_abdomen.png';
+        assets.kafa.src = 'spider_kafa.png';
+        assets.bacak.src = 'spider_bacak.png';
+        assets.pedipalp.src = 'spider_pedipalp.png';
+        assets.dis.src = 'spider_dis.png';
+        assets.ag_mermi.src = 'spider_ag_mermi.png';
+        assets.ag_tuzak.src = 'spider_ag_tuzak.png';
+
+        // ==========================================
+        // 2. AĞ VE DÜŞMAN SINIFLARI
+        // ==========================================
+        class WebProjectile {
+            constructor(x, y, angle, target) {
+                this.x = x; this.y = y; this.angle = angle; this.speed = 14; this.active = true; this.dist = 0;
+                if (target) this.angle = Math.atan2(target.y - y, target.x - x);
+            }
+            update() {
+                if (!this.active) return;
+                this.x += Math.cos(this.angle) * this.speed; this.y += Math.sin(this.angle) * this.speed; this.dist += this.speed;
+                if (this.dist > 400) this.active = false;
+                enemies.forEach(e => {
+                    if (!e.isTrapped && Math.hypot(this.x - e.x, this.y - e.y) < 30) { this.active = false; e.trap(); }
+                });
+            }
+            draw(camX, camY) {
+                if (!this.active || !assets.ag_mermi.complete) return;
+                ctx.save(); ctx.translate(this.x - camX, this.y - camY); ctx.rotate(this.angle);
+                ctx.drawImage(assets.ag_mermi, -30, -30, 60, 60); ctx.restore();
+            }
+        }
+
+        class EnemyBug {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.hp = 50; this.maxHp = 50; this.angle = Math.random() * Math.PI * 2;
+                this.isTrapped = false; this.trapTimer = 0;
+            }
+            trap() { this.isTrapped = true; this.trapTimer = 180; this.hp -= 15; }
+            update(px, py) {
+                if (this.isTrapped) { this.trapTimer--; if (this.trapTimer <= 0) this.isTrapped = false; return; }
+                let d = Math.hypot(px - this.x, py - this.y);
+                if (d < 250) {
+                    let tAng = Math.atan2(this.y - py, this.x - px);
+                    let aDiff = tAng - this.angle; while(aDiff<-Math.PI) aDiff+=Math.PI*2; while(aDiff>Math.PI) aDiff-=Math.PI*2;
+                    this.angle += aDiff * 0.1; this.x += Math.cos(this.angle)*1.5; this.y += Math.sin(this.angle)*1.5;
+                }
+            }
+            draw(camX, camY) {
+                let dx = this.x - camX; let dy = this.y - camY;
+                ctx.save(); ctx.translate(dx, dy); ctx.rotate(this.angle + Math.PI/2);
+                ctx.fillStyle = '#4a5568'; ctx.beginPath(); ctx.ellipse(0, 5, 12, 16, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#2d3748'; ctx.beginPath(); ctx.arc(0, -10, 8, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+                if (this.isTrapped && assets.ag_tuzak.complete) ctx.drawImage(assets.ag_tuzak, dx - 45, dy - 45, 90, 90);
+                ctx.fillStyle = 'red'; ctx.fillRect(dx - 15, dy - 25, (this.hp / this.maxHp) * 30, 4);
+            }
+        }
+
+        let webs = []; let enemies = []; let score = 0;
+
+        // ==========================================
+        // 3. DÜZELTİLMİŞ ÖRÜMCEK ANİMASYON SINIFI
+        // ==========================================
+        class SpriteSpider {
+            constructor(images) { this.imgs = images; this.attackDuration = 50; }
+
+            draw(ctx, x, y, angle, state, animTimer, attackTimer) {
+                if (!this.imgs.abdomen.complete || this.imgs.abdomen.naturalWidth === 0) return;
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle + Math.PI / 2); // Örümceğin önü fareye baksın
+
+                let attackProg = (state === 'attack') ? (attackTimer / this.attackDuration) : 0;
+                let isMoving = (state === 'walk');
+
+                // --- KİNETİK HESAPLAMALAR ---
+                let rearing = 0; let lunge = 0; let fangOp = 0;
+                if (state === 'attack') {
+                    if (attackProg < 0.4) { rearing = Math.sin((attackProg / 0.4) * (Math.PI / 2)); } 
+                    else if (attackProg < 0.6) {
+                        let s = (attackProg - 0.4) / 0.2;
+                        lunge = Math.sin(s * Math.PI); fangOp = lunge; rearing = 1 - s; 
+                    } 
+                }
+
+                // Gövde Esnemesi
+                let bodyY = (rearing * 12) - (lunge * 20);
+
+                // --- ZEMİN GÖLGESİ ---
+                ctx.fillStyle = `rgba(0,0,0,${0.5 - (rearing * 0.2)})`;
+                ctx.beginPath(); ctx.ellipse(0, bodyY, 35, 45, 0, 0, Math.PI*2); ctx.fill();
+
+                // --- BACAKLAR ---
+                // DÜZELTME: Bacaklar artık birbirinden ve kafadan kopmayacak.
+                // Hepsi merkez koordinatlarına daha yakın birleştirildi.
+                // x: Gövdeden yatay çıkış, y: Dikey bağlantı noktası
+                const legs = [
+                    {s:-1, x:-12, y:-15, r: -0.2, f:true},  // Ön Bacak L1
+                    {s:-1, x:-14, y:-5,  r: 0,    f:true},  // L2
+                    {s:-1, x:-14, y:5,   r: 0.2,  f:false}, // L3
+                    {s:-1, x:-12, y:15,  r: 0.5,  f:false}, // Arka Bacak L4
+                    {s:1,  x:12,  y:-15, r: 0.2,  f:true},  // Ön Bacak R1
+                    {s:1,  x:14,  y:-5,  r: 0,    f:true},  // R2
+                    {s:1,  x:14,  y:5,   r: -0.2, f:false}, // R3
+                    {s:1,  x:12,  y:15,  r: -0.5, f:false}  // Arka Bacak R4
+                ];
+
+                legs.forEach((leg, i) => {
+                    ctx.save();
+                    ctx.translate(leg.x, bodyY + leg.y); // Yeni Düzeltilmiş Pivotlar
+                    
+                    let moveAnim = (isMoving) ? Math.sin(animTimer + i) * 0.3 : 0;
+                    let liftAnim = (leg.f) ? (rearing * 0.6) : 0; // Şaha kalkınca ön bacaklar geriye kıvrılır
+                    
+                    ctx.rotate(leg.r + moveAnim + (leg.s * liftAnim));
+                    if (leg.s === -1) ctx.scale(-1, 1); // Sol bacakları aynala
+                    
+                    ctx.drawImage(this.imgs.bacak, -10, -20, 60, 60); // Resim boyutunu ve offset'i sıkılaştırdık
+                    ctx.restore();
+                });
+
+                // --- GÖVDE (Abdomen & Kafa) ---
+                ctx.save();
+                ctx.translate(0, bodyY);
+
+                // DÜZELTME: Arka Gövde (Abdomen)
+                // Kafa ile birleşmesi için Y ekseninde -5 konumuna çektik.
+                ctx.drawImage(this.imgs.abdomen, -35, -30, 70, 85); 
+
+                // DÜZELTME: Ön Gövde (Cephalothorax / Kafa)
+                // Şaha kalktığında hafifçe yukarı kayar ama kopmaz.
+                ctx.translate(0, -25 - (rearing * 5));
+                ctx.drawImage(this.imgs.kafa, -25, -25, 50, 45); 
+
+                // --- PEDİPALPLER (Ağız Kolları) ---
+                // DÜZELTME: Kafanın tam ucuna tutturuldu.
+                for(let side = -1; side <= 1; side += 2) {
+                    ctx.save();
+                    ctx.translate(side * 10, -15);
+                    ctx.rotate(side * (0.2 + rearing * 0.6)); // Şaha kalkınca ürkütücü açılır
+                    if(side === -1) ctx.scale(-1, 1);
+                    ctx.drawImage(this.imgs.pedipalp, -8, -25, 24, 32);
+                    ctx.restore();
+                }
+
+                // --- FANGS (Zehir Dişleri) ---
+                // DÜZELTME: Tam olarak ağız bölgesine tutturuldu.
+                for(let side = -1; side <= 1; side += 2) {
+                    ctx.save();
+                    ctx.translate(side * 5, -18);
+                    ctx.rotate(side * (0.1 + fangOp)); // Isırırken şak diye açılır
+                    if(side === -1) ctx.scale(-1, 1);
+                    ctx.drawImage(this.imgs.dis, -8, -12, 16, 24);
+                    ctx.restore();
+                }
+
+                ctx.restore(); // Gövde Matrix sonu
+                ctx.restore(); // Ana Matrix sonu
+            }
+        }
+
+        // ==========================================
+        // 4. KONTROLLER VE OYUN DÖNGÜSÜ
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        const player = {
+            x: canvas.width / 2, y: canvas.height / 2,
+            angle: 0, speed: 4.5, state: 'idle', animTimer: 0, attackTimer: 0, target: null, hasShotWeb: false
+        };
+
+        const spiderSprite = new SpriteSpider(assets);
+
+        for(let i=0; i<5; i++) enemies.push(new EnemyBug(player.x + Math.random()*800-400, player.y + Math.random()*800-400));
+
+        const keys = {};
+        window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code === 'Space') triggerAttack(); });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        let mouse = { x: canvas.width/2, y: canvas.height/2 };
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+        let joyVector = { x: 0, y: 0 }; let activeTouchId = null; let startPos = { x: 0, y: 0 };
+        const joyZone = document.getElementById('joystickZone'); const joyKnob = document.getElementById('joystickKnob');
+        const atkBtn = document.getElementById('attackBtn');
+
+        atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); triggerAttack(); });
+        atkBtn.addEventListener('mousedown', (e) => { e.preventDefault(); triggerAttack(); });
+
+        function triggerAttack() {
+            if (player.state !== 'attack') {
+                player.state = 'attack'; player.attackTimer = 0; player.hasShotWeb = false;
+                let min = 350; player.target = null;
+                enemies.forEach(e => { let d = Math.hypot(player.x - e.x, player.y - e.y); if(d < min) { min = d; player.target = e; } });
+            }
+        }
+
+        window.addEventListener('touchstart', (e) => {
+            for (let t of e.changedTouches) {
+                if (t.clientX < window.innerWidth / 2 && activeTouchId === null) {
+                    activeTouchId = t.identifier; startPos = { x: t.clientX, y: t.clientY };
+                    joyZone.style.left = (t.clientX - 60) + 'px'; joyZone.style.top = (t.clientY - 60) + 'px'; joyZone.classList.add('active');
+                }
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            for (let t of e.changedTouches) {
+                if (t.identifier === activeTouchId) {
+                    e.preventDefault(); 
+                    let dx = t.clientX - startPos.x; let dy = t.clientY - startPos.y;
+                    if (Math.hypot(dx, dy) > 40) { let ang = Math.atan2(dy, dx); dx = Math.cos(ang)*40; dy = Math.sin(ang)*40; }
+                    joyKnob.style.transform = `translate(${dx}px, ${dy}px)`; joyVector.x = dx / 40; joyVector.y = dy / 40;
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', (e) => {
+            for (let t of e.changedTouches) {
+                if (t.identifier === activeTouchId) {
+                    activeTouchId = null; joyVector = { x: 0, y: 0 }; joyKnob.style.transform = `translate(0px, 0px)`; joyZone.classList.remove('active');
+                }
+            }
+        });
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const cameraX = player.x - canvas.width / 2; const cameraY = player.y - canvas.height / 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)'; ctx.lineWidth = 1; ctx.beginPath();
+            for (let x = -(cameraX % 80); x < canvas.width; x += 80) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
+            for (let y = -(cameraY % 80); y < canvas.height; y += 80) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); } ctx.stroke();
+
+            let dx = 0, dy = 0;
+            if (keys['KeyW']) dy -= 1; if (keys['KeyS']) dy += 1; if (keys['KeyA']) dx -= 1; if (keys['KeyD']) dx += 1;
+            if (dx === 0 && dy === 0) { dx = joyVector.x; dy = joyVector.y; }
+
+            let isMoving = (dx !== 0 || dy !== 0);
+
+            if (player.state === 'attack') {
+                player.attackTimer++; let prog = player.attackTimer / spiderSprite.attackDuration;
+                if (prog > 0.4 && prog < 0.6) {
+                    player.x += Math.cos(player.angle) * 12; player.y += Math.sin(player.angle) * 12;
+                    if (prog > 0.45 && prog < 0.5) enemies.forEach(e => { if(Math.hypot(player.x - e.x, player.y - e.y) < 60) e.hp -= 2; });
+                }
+                if (prog > 0.35 && prog < 0.4 && !player.hasShotWeb) {
+                    player.hasShotWeb = true; webs.push(new WebProjectile(player.x + Math.cos(player.angle)*30, player.y + Math.sin(player.angle)*30, player.angle, player.target));
+                }
+                if (player.attackTimer >= spiderSprite.attackDuration) { player.state = 'idle'; player.target = null; }
+            } else if (isMoving) {
+                if (Math.abs(dx) === 1 && Math.abs(dy) === 1 && joyVector.x === 0) { dx *= 0.707; dy *= 0.707; }
+                player.x += dx * player.speed; player.y += dy * player.speed; player.state = 'walk'; player.animTimer += 0.45; 
+            } else { player.state = 'idle'; player.animTimer += 0.05; }
+
+            player.x = Math.max(50, Math.min(canvas.width - 50, player.x)); player.y = Math.max(50, Math.min(canvas.height - 50, player.y));
+
+            let targetAngle = player.angle;
+            if (player.state === 'attack' && player.target) targetAngle = Math.atan2(player.target.y - player.y, player.target.x - player.x);
+            else if (activeTouchId !== null && isMoving) targetAngle = Math.atan2(dy, dx);
+            else if (activeTouchId === null) targetAngle = Math.atan2(mouse.y - canvas.height/2, mouse.x - canvas.width/2);
+            
+            let aDiff = targetAngle - player.angle; while (aDiff < -Math.PI) aDiff += Math.PI * 2; while (aDiff > Math.PI) aDiff -= Math.PI * 2;
+            player.angle += aDiff * ((player.state === 'attack' && player.attackTimer < 20) ? 0.4 : 0.25);
+
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                enemies[i].update(player.x, player.y); enemies[i].draw(cameraX, cameraY);
+                if (enemies[i].hp <= 0) { enemies.splice(i, 1); score += 10; document.getElementById('scoreText').innerText = score; enemies.push(new EnemyBug(player.x + (Math.random()-0.5)*800, player.y + (Math.random()-0.5)*800)); }
+            }
+
+            for (let i = webs.length - 1; i >= 0; i--) { webs[i].update(); webs[i].draw(cameraX, cameraY); if (!webs[i].active) webs.splice(i, 1); }
+
+            spiderSprite.draw(ctx, player.x - cameraX, player.y - cameraY, player.angle, player.state, player.animTimer, player.attackTimer);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Resimlerin Yüklenmesini Bekleyip Başlat
+        setTimeout(gameLoop, 500);
+    </script>
+</body>
+</html>

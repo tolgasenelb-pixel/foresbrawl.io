@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="80" fill="#3a7d1e"/>
+  <rect width="512" height="512" rx="80" fill="url(#bg)"/>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#5ab52e"/>
+      <stop offset="100%" stop-color="#2a5e10"/>
+    </radialGradient>
+  </defs>
+  <!-- Tree trunk -->
+  <rect x="234" y="340" width="44" height="100" rx="8" fill="#5c3a1e"/>
+  <!-- Tree layers -->
+  <polygon points="256,80 340,240 172,240" fill="#4caf25"/>
+  <polygon points="256,100 336,248 176,248" fill="#57c42c" opacity="0.4"/>
+  <polygon points="256,155 330,280 182,280" fill="#4caf25"/>
+  <polygon points="256,175 326,288 186,288" fill="#57c42c" opacity="0.4"/>
+  <polygon points="256,215 320,340 192,340" fill="#4caf25"/>
+  <!-- Axe -->
+  <rect x="330" y="270" width="16" height="80" rx="4" fill="#5c3a1e" transform="rotate(30 330 270)"/>
+  <ellipse cx="360" cy="262" rx="28" ry="18" fill="#9ca3af" transform="rotate(30 360 262)"/>
+  <ellipse cx="360" cy="262" rx="24" ry="14" fill="#c0c8d8" transform="rotate(30 360 262)"/>
+  <!-- Shine -->
+  <rect width="512" height="512" rx="80" fill="url(#shine)" opacity="0.12"/>
+  <defs>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="white"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kurt PNG Animasyon ve Joystick Motoru</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2c3a20;
+            overflow: hidden;
+            touch-action: none; /* Mobilde ekranın kaymasını engeller */
+            font-family: sans-serif;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            background: radial-gradient(circle at center, #4a6336 0%, #2c3a20 100%);
+        }
+        
+        /* --- MOBİL JOYSTICK VE BUTON TASARIMLARI --- */
+        .joystick-zone {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+        .joystick-zone.active { opacity: 1; }
+        .joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            position: absolute;
+            transition: transform 0.05s linear;
+        }
+        .attack-btn {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            width: 90px;
+            height: 90px;
+            background: #dc2626;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            border: 4px solid #f87171;
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .attack-btn:active {
+            transform: scale(0.95);
+            background: #b91c1c;
+        }
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #10b981;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="info-panel">
+        <h3 style="margin:0 0 5px 0; color: #10b981;">PNG Oyun Motoru</h3>
+        <p style="margin:0; font-size: 12px; color: #ccc;">Hareket: WASD veya Sol Joystick</p>
+        <p style="margin:5px 0 0 0; font-size: 12px; color: #ccc;">Saldırı: Boşluk veya Sağ Buton</p>
+    </div>
+
+    <!-- Mobil Kontroller -->
+    <div id="joystickZone" class="joystick-zone">
+        <div id="joystickKnob" class="joystick-knob"></div>
+    </div>
+    <div id="attackBtn" class="attack-btn">ISIR</div>
+
+    <!-- Oyun Ekranı -->
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // ==========================================
+        // 1. PNG ASSETLERİNİ YÜKLE
+        // ==========================================
+        const assets = {
+            kafa_kapali: new Image(),
+            kafa_acik: new Image(),
+            govde: new Image(),
+            kuyruk: new Image(),
+            pati: new Image()
+        };
+
+        // NOT: Resim isimleri önceki koddan indirdiğiniz isimlerle aynı olmalıdır.
+        assets.kafa_kapali.src = 'kurt_kafa.png';
+        assets.kafa_acik.src = 'kurt_kafa_acik.png';
+        assets.govde.src = 'kurt_govde.png';
+        assets.kuyruk.src = 'kurt_kuyruk.png';
+        assets.pati.src = 'kurt_pati.png';
+
+        // ==========================================
+        // 2. SPRITESHEET ANİMASYON SINIFI
+        // ==========================================
+        class SpriteWolf {
+            constructor(images) {
+                this.imgs = images;
+                this.attackDuration = 45; // Animasyon çerçeve (frame) süresi
+            }
+
+            draw(ctx, x, y, angle, state, animTimer, attackTimer) {
+                // Eğer resimler HTML klasöründe yoksa veya yüklenemediyse çökmesini engelle
+                if (!this.imgs.govde.complete || this.imgs.govde.naturalWidth === 0) return;
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle + Math.PI / 2); // Yukarı bakacak şekilde kalibre et
+
+                let attackProg = (state === 'attack') ? (attackTimer / this.attackDuration) : 0;
+                let isMoving = (state === 'walk');
+
+                // -- KİNETİK HESAPLAMALAR (ESNEME VE ZIPLAMA) --
+                let stretchY = 0;      
+                let headStretchY = 0;  
+                let isBiting = false;  
+
+                if (state === 'attack') {
+                    if (attackProg < 0.3) {
+                        // Geri çekilme
+                        let w = attackProg / 0.3;
+                        stretchY = w * 8; 
+                        headStretchY = w * 6; 
+                    } else if (attackProg < 0.6) {
+                        // İleri atılma ve Isırma
+                        let s = (attackProg - 0.3) / 0.3;
+                        let strike = Math.sin(s * Math.PI);
+                        stretchY = -strike * 18; 
+                        headStretchY = -strike * 28; 
+                        isBiting = true; 
+                    } else {
+                        // Toparlanma
+                        let r = (attackProg - 0.6) / 0.4;
+                        stretchY = -18 * (1 - r);
+                        headStretchY = -28 * (1 - r);
+                    }
+                }
+
+                // Yürürken vücudun hafif inip kalkması
+                let bodyBob = isMoving && state !== 'attack' ? Math.sin(animTimer * 2) * 2 : Math.sin(animTimer) * 1.5;
+
+                // -- ÇİZİM SIRALAMASI (Alttan Üste Doğru) --
+
+                // 1. PATİLER (En altta)
+                const paws = [
+                    {x: -22, y: -15, phase: 0},        // Sol Ön
+                    {x: 22, y: -15, phase: Math.PI},   // Sağ Ön
+                    {x: -24, y: 25, phase: Math.PI},   // Sol Arka
+                    {x: 24, y: 25, phase: 0}           // Sağ Arka
+                ];
+                paws.forEach(paw => {
+                    let moveAnim = (isMoving && state !== 'attack') ? Math.sin(animTimer + paw.phase) * 12 : 0;
+                    ctx.drawImage(this.imgs.pati, paw.x - 20, (paw.y + moveAnim) - 20, 40, 40);
+                });
+
+                // 2. KUYRUK
+                ctx.save();
+                let tailSwing = (state === 'walk') ? Math.sin(animTimer) * 0.4 : Math.sin(animTimer * 0.5) * 0.2;
+                if (state === 'attack') tailSwing = 0;
+                
+                ctx.translate(0, 32 + bodyBob);
+                ctx.rotate(tailSwing);
+                ctx.drawImage(this.imgs.kuyruk, -60, -20, 120, 120);
+                ctx.restore();
+
+                // 3. GÖVDE
+                ctx.save();
+                ctx.translate(0, stretchY + bodyBob);
+                ctx.drawImage(this.imgs.govde, -60, -60, 120, 120);
+                ctx.restore();
+
+                // 4. KAFA (En üstte)
+                ctx.save();
+                ctx.translate(0, stretchY + bodyBob + headStretchY - 10); 
+                let currentHead = isBiting ? this.imgs.kafa_acik : this.imgs.kafa_kapali;
+                ctx.drawImage(currentHead, -50, -50, 100, 100);
+                ctx.restore();
+
+                ctx.restore();
+            }
+        }
+
+        // ==========================================
+        // 3. OYUN KURULUMU VE KONTROLLER
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        // Karakter Durumu (Client State)
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            angle: 0,
+            animTimer: 0,
+            attackTimer: 0,
+            state: 'idle', // 'idle', 'walk', 'attack'
+            speed: 5
+        };
+
+        const wolfSprite = new SpriteWolf(assets);
+
+        // --- Klavye ve Mouse Kontrolleri ---
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        let mouse = { x: canvas.width/2, y: canvas.height/2 };
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+        window.addEventListener('keydown', e => { if (e.code === 'Space') triggerAttack(); });
+
+        // --- Mobil Joystick Kontrolleri ---
+        let joyVector = { x: 0, y: 0 };
+        let activeTouchId = null;
+        let startPos = { x: 0, y: 0 };
+        
+        const joyZone = document.getElementById('joystickZone');
+        const joyKnob = document.getElementById('joystickKnob');
+        const atkBtn = document.getElementById('attackBtn');
+
+        // Saldırı Butonu
+        atkBtn.addEventListener('touchstart', (e) => { e.preventDefault(); triggerAttack(); });
+        atkBtn.addEventListener('mousedown', (e) => { e.preventDefault(); triggerAttack(); });
+
+        function triggerAttack() {
+            if (player.state !== 'attack') {
+                player.state = 'attack';
+                player.attackTimer = 0;
+            }
+        }
+
+        // Joystick Dokunmatik Olayları
+        window.addEventListener('touchstart', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                // Ekranın sol yarısına dokunulduysa ve joystick boşta ise
+                if (t.clientX < window.innerWidth / 2 && activeTouchId === null) {
+                    activeTouchId = t.identifier;
+                    startPos = { x: t.clientX, y: t.clientY };
+                    
+                    // Joysticki dokunulan yere taşı
+                    joyZone.style.left = (t.clientX - 60) + 'px';
+                    joyZone.style.top = (t.clientY - 60) + 'px';
+                    joyZone.classList.add('active');
+                }
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (t.identifier === activeTouchId) {
+                    e.preventDefault(); // Ekran kaymasını engelle
+                    
+                    let dx = t.clientX - startPos.x;
+                    let dy = t.clientY - startPos.y;
+                    const maxDist = 50; // Knob'un çıkabileceği max mesafe
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist > maxDist) {
+                        dx = (dx / dist) * maxDist;
+                        dy = (dy / dist) * maxDist;
+                    }
+
+                    joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+                    
+                    // Vektörü -1 ile 1 arasında normalize et
+                    joyVector.x = dx / maxDist;
+                    joyVector.y = dy / maxDist;
+                    
+                    // Fareyi devre dışı bırak, rotasyonu joystick yönüne göre ayarla
+                    mouse.x = player.x + joyVector.x * 100;
+                    mouse.y = player.y + joyVector.y * 100;
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === activeTouchId) {
+                    activeTouchId = null;
+                    joyVector = { x: 0, y: 0 };
+                    joyKnob.style.transform = `translate(0px, 0px)`;
+                    joyZone.classList.remove('active');
+                }
+            }
+        });
+
+        // ==========================================
+        // 4. ANA OYUN DÖNGÜSÜ (GAME LOOP)
+        // ==========================================
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Zemin Izgarası (Hareketi anlamak için)
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+            let offsetX = -(player.x % 100);
+            let offsetY = -(player.y % 100);
+            ctx.beginPath();
+            for(let i = offsetX; i < canvas.width; i+=100) { ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); }
+            for(let i = offsetY; i < canvas.height; i+=100) { ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); }
+            ctx.stroke();
+
+            // --- HAREKET HESAPLAMA ---
+            let dx = 0, dy = 0;
+            
+            // Klavye girdisi
+            if (keys['KeyW']) dy -= 1; if (keys['KeyS']) dy += 1;
+            if (keys['KeyA']) dx -= 1; if (keys['KeyD']) dx += 1;
+            
+            // Joystick girdisi (Klavye yoksa)
+            if (dx === 0 && dy === 0) {
+                dx = joyVector.x;
+                dy = joyVector.y;
+            }
+
+            // Atılma anında (Saldırı) hareket kısıtlaması
+            let moveMultiplier = 1;
+            if (player.state === 'attack') {
+                let prog = player.attackTimer / wolfSprite.attackDuration;
+                moveMultiplier = (prog > 0.3 && prog < 0.6) ? 1.5 : 0; // Sadece ısırırken ileri fırla
+            }
+
+            // Hareketi uygula
+            let isMoving = (dx !== 0 || dy !== 0);
+            
+            if (isMoving && player.state !== 'attack') {
+                // Çapraz gidişlerde hızı dengele
+                if (Math.abs(dx) === 1 && Math.abs(dy) === 1 && joyVector.x === 0) {
+                    dx *= 0.7071; dy *= 0.7071; 
+                }
+                player.x += dx * player.speed;
+                player.y += dy * player.speed;
+                player.state = 'walk';
+                player.animTimer += 0.35; 
+            } else if (player.state === 'attack') {
+                // Saldırıda fırlama ivmesi
+                player.x += Math.cos(player.angle) * player.speed * moveMultiplier;
+                player.y += Math.sin(player.angle) * player.speed * moveMultiplier;
+                player.attackTimer++;
+                
+                if (player.attackTimer >= wolfSprite.attackDuration) {
+                    player.state = 'idle'; // Saldırı bitti
+                }
+            } else {
+                player.state = 'idle';
+                player.animTimer += 0.05; 
+            }
+
+            // Sınırlar (Ekranda kalsın diye)
+            player.x = Math.max(50, Math.min(canvas.width - 50, player.x));
+            player.y = Math.max(50, Math.min(canvas.height - 50, player.y));
+
+            // --- ROTASYON (AÇI) HESAPLAMA ---
+            let targetAngle = player.angle;
+            
+            if (activeTouchId !== null && isMoving) {
+                // Joystick kullanılıyorsa, gidilen yöne bak
+                targetAngle = Math.atan2(dy, dx);
+            } else if (activeTouchId === null) {
+                // Klavye/Mouse kullanılıyorsa, fareye bak
+                targetAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+            }
+
+            // Açıyı yumuşak dönüştür
+            let angleDiff = targetAngle - player.angle;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            player.angle += angleDiff * 0.15; 
+
+            // --- EKRANA ÇİZ ---
+            // Karakteri daima ekranın ortasında tutacak şekilde kamerayı ayarlıyoruz (Taming.io stili)
+            let cameraX = player.x - canvas.width / 2;
+            let cameraY = player.y - canvas.height / 2;
+
+            wolfSprite.draw(
+                ctx, 
+                player.x - cameraX, 
+                player.y - cameraY, 
+                player.angle, 
+                player.state, 
+                player.animTimer, 
+                player.attackTimer
+            );
+
+            // Uyarı: Eğer resimler yüklenmediyse ekranda yazı göster
+            if (!assets.govde.complete || assets.govde.naturalWidth === 0) {
+                ctx.fillStyle = 'white';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText("Lütfen 'kurt_govde.png' vb. dosyaların bu HTML dosyasıyla aynı klasörde olduğundan emin olun.", canvas.width/2, 100);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Başlat
+        gameLoop();
+    </script>
+</body>
+</html>
