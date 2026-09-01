@@ -11177,9 +11177,10 @@ function drawPlayer() {
 // Snapshot interpolation + dead-reckoning for other players.
 // Renders each player at (now - RENDER_DELAY) so we always have ≥2 snapshots
 // to interpolate between — eliminates the visual jumps from 30Hz (33ms) packet gaps.
-// Tuned to 80ms: at 30Hz server (33ms ticks), 80ms = ~2.4 ticks behind — enough buffer to
-// smooth over Replit proxy jitter (50-150ms) and prevent player teleporting/freezing.
-const _RENDER_DELAY = 50; // ms behind real-time (düşük = daha az görsel gecikme; 30Hz'de 2 tick tampon yeterli)
+// Reduced to 26ms so online players and buildings feel immediate without introducing
+// noticeable teleports on jittery connections. This keeps the render delay under 1 tick
+// while still smoothing packet bursts on weak/mobile networks.
+const _RENDER_DELAY = 26; // ms behind real-time (çok düşük gecikme, daha akıcı görünüm)
 function _interpOtherPlayers() {
   const renderT = Date.now() - _RENDER_DELAY;
   _otherPlayers.forEach((p) => {
@@ -12609,16 +12610,16 @@ function update(timestamp = 0) {
     camY = player.y - canvas.height / 2;
     _camReady = true;
   } else {
-    const _camSpd = _onTrain ? 0.06 : 0.16;
+    const _camSpd = _onTrain ? 0.08 : 0.22;
     const _camFactor = Math.min(1, _camSpd * _dt);
     camX += (player.x - canvas.width/2 - camX) * _camFactor;
     camY += (player.y - canvas.height/2 - camY) * _camFactor;
   }
 
   // ── PC & Mobil Kamera Yakınlığı (hafifçe daha uzakta, daha stabil, daha az stutter) ──
-  const _baseTarget = _onTrain ? (_isMobile ? 0.50 : 0.56) : (_isMobile ? 0.68 : 0.74);
-  const _zoomTarget = Math.max(0.70, Math.min(1.00, _baseTarget * _userZoomMultiplier));
-  ZOOM += (_zoomTarget - ZOOM) * 0.08;
+  const _baseTarget = _onTrain ? (_isMobile ? 0.52 : 0.56) : (_isMobile ? 0.72 : 0.74);
+  const _zoomTarget = Math.max(0.72, Math.min(1.00, _baseTarget * _userZoomMultiplier));
+  ZOOM += (_zoomTarget - ZOOM) * 0.09;
 
   // ── Kamera Sınır Kelepçesi: Ekran dışı / boşluk asla görünmez ──
   const _hvw = (canvas.width / 2) / (ZOOM || 0.78);
