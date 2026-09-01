@@ -4700,7 +4700,7 @@ let _isDying = false; // guard against double-die (pvp_hit + pvp_killed race)
 // ============================================================
 const ATTACK_DUR = {
   1: 42,   // Axe
-  2: 34,   // Katana
+  2: 54,   // Katana / Pence (daha yumuşak, daha uzun vuruş)
   3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, // Buildings
 };
 // Per-swing hit tracking: each swing gets a unique ID, each enemy/resource can be hit once per swing
@@ -4740,6 +4740,7 @@ const player = {
   weapon: 1,
   wood: 50, stone: 30, gold: 100, apples: 5,
   hp: 250, maxHp: 250, xp: 0,
+  _fruitUseUntil: 0,
   isAttacking: false, attackTimer: 0,
   attackDuration: ATTACK_DUR[1],
   lastHitEnemyTime: 0,
@@ -4927,17 +4928,23 @@ invSlots.forEach((slot, index) => {
 // ============================================================
 function eatApple() {
   if (!player || player.dead) return;
+  const now = Date.now();
+  if (player._fruitUseUntil && now < player._fruitUseUntil) {
+    floatingTexts.push({ x: player.x, y: player.y - 45, text: 'Meyve Dinleniyor…', alpha: 1, life: 22, color: '#ffbb55' });
+    return;
+  }
   if (player.apples > 0 && player.hp < player.maxHp) {
     player.apples--;
     const healAmt = 25;
     player.hp = Math.min(player.maxHp, player.hp + healAmt);
+    player._fruitUseUntil = now + 650;
     if (_connected && _socket) _socket.emit('eat_apple');
     updateHpBar();
     updateUI();
     playSound(440, 0.12, 'sine', 0.3);
     floatingTexts.push({ x: player.x, y: player.y - 45, text: `+${healAmt} HP`, alpha: 1, life: 35, color: '#44ff66' });
   } else if (player.apples <= 0) {
-    floatingTexts.push({ x: player.x, y: player.y - 45, text: 'Elma / Yemek Yok!', alpha: 1, life: 30, color: '#ff6666' });
+    floatingTexts.push({ x: player.x, y: player.y - 45, text: 'Meyve / Elma Yok!', alpha: 1, life: 30, color: '#ff6666' });
   } else if (player.hp >= player.maxHp) {
     floatingTexts.push({ x: player.x, y: player.y - 45, text: 'Canın Zaten Dolu!', alpha: 1, life: 25, color: '#ffea55' });
   }
@@ -5682,14 +5689,14 @@ function setupJoy(zoneId, stickId, isMove) {
   const stick = document.getElementById(stickId);
   const base = zone ? zone.querySelector('.joy-base') : null;
   if (!zone || !stick) return;
-  let active = false, cx, cy, currentId = null;
+  let active = false, cx, cy, currentId = null, lastDist = 0;
   const maxDist = 30; // was 40 — smaller travel radius for compact joystick
 
   zone.addEventListener('touchstart', e => {
     e.preventDefault();
     if (active) return;
     const t = e.changedTouches[0];
-    currentId = t.identifier; active = true;
+    currentId = t.identifier; active = true; lastDist = 0;
     if (isMove) _joystickActive = true;
     // Floating joystick: appear exactly where user taps
     const r = zone.getBoundingClientRect();
@@ -5714,12 +5721,14 @@ function setupJoy(zoneId, stickId, isMove) {
     const ang = Math.atan2(dy, dx);
     const ox = Math.cos(ang) * dist, oy = Math.sin(ang) * dist;
     stick.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`;
+    lastDist = dist;
     if (isMove) {
-      player.vx = (ox / maxDist) * 6.4;
-      player.vy = (oy / maxDist) * 6.4;
+      const moveScale = window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 5.6 : 6.4;
+      player.vx = (ox / maxDist) * moveScale;
+      player.vy = (oy / maxDist) * moveScale;
     } else {
       player.angle = ang;
-      player.isAttacking = true;
+      player.isAttacking = dist > 8;
     }
   }
 
@@ -5747,6 +5756,10 @@ function setupJoy(zoneId, stickId, isMove) {
         }
         if (isMove) { player.vx = 0; player.vy = 0; _joystickActive = false; }
         else {
+          const doFruitUse = lastDist < 10 && !player.isAttacking && player.hp < player.maxHp && player.apples > 0 && (!player._fruitUseUntil || Date.now() >= player._fruitUseUntil);
+          if (doFruitUse) {
+            eatApple();
+          }
           if (player.weapon >= 3 && player.isAttacking) tryPlaceBuilding();
           player.isAttacking = false;
         }
@@ -11010,11 +11023,11 @@ function drawPlayer() {
     } else {
       // Asymmetric swing: reach peak at PEAK_T (fast strike), return slowly after.
       // prog goes 0→1; remap squishes 0→PEAK_T to 0→1 fast, PEAK_T→1 to 1→0 slow.
-      const PEAK_T = 0.28;
+      const PEAK_T = player.weapon === 2 ? 0.38 : 0.28;
       const remap = prog < PEAK_T
         ? prog / PEAK_T
         : 1.0 - (prog - PEAK_T) / (1.0 - PEAK_T);
-      swingAngle = Math.sin(remap * Math.PI * 0.5) * (Math.PI / 1.5);
+      swingAngle = Math.sin(remap * Math.PI * 0.5) * (player.weapon === 2 ? (Math.PI / 1.2) : (Math.PI / 1.5));
     }
   }
 
@@ -11048,7 +11061,9 @@ function drawPlayer() {
 
   for (let _ai = 0; _ai < 2; _ai++) {
     const ay = _ai === 0 ? -13 : 20, sign = _ai === 0 ? -1 : 1;
-    ctx.save(); ctx.translate(30, ay);
+    const armX = player.weapon === 2 ? 38 : 30;
+    const armY = ay - (player.weapon === 2 ? 2 : 0);
+    ctx.save(); ctx.translate(armX, armY);
     // Forearm oval — gradient at HIGH quality only; flat at medium/potato
     // PERF: createRadialGradient per arm per frame was costing 4 gradient creates/frame
     if (_qualityLevel >= 2) {
@@ -11059,7 +11074,7 @@ function drawPlayer() {
       ctx.fillStyle = armCol;
     }
     ctx.strokeStyle = '#000'; ctx.lineWidth = 4.5;
-    ctx.beginPath(); ctx.ellipse(6,0,18,13,0.18*sign,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(8,0,18,13,0.12*sign,0,Math.PI*2); ctx.fill(); ctx.stroke();
     // Knuckle highlight (quality 1+)
     if (_qualityLevel >= 1) {
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
@@ -12151,7 +12166,9 @@ function update(timestamp = 0) {
       }
     }
     const mobReach = player.radius + e.radius + 16;
-    if (dist < mobReach) {
+    const _viewPad = Math.max(110, canvas.width / (ZOOM || 0.78) * 0.8, canvas.height / (ZOOM || 0.78) * 0.8);
+    const _mobVisible = Math.abs(e.x - (camX + canvas.width / 2)) < _viewPad && Math.abs(e.y - (camY + canvas.height / 2)) < _viewPad;
+    if (dist < mobReach && (_mobVisible || dist < 80)) {
       player.momX += (dx/dist) * 8; player.momY += (dy/dist) * 8; // physical push-back
       if (e.hp > 0 && !_spawnProtected && (!_connected || e._netId === undefined) && now - (e.lastHit || 0) > 1600) {
         _lastDamager = e;
@@ -12191,10 +12208,13 @@ function update(timestamp = 0) {
 
         // Spike (type 3): deals heavy spike damage to mob + push-back
         if (b.type === 3) {
-          if (d < minD) {
-            e.x += Math.cos(ang) * (minD - d) * 0.85;
-            e.y += Math.sin(ang) * (minD - d) * 0.85;
-            e.vx += Math.cos(ang) * 6; e.vy += Math.sin(ang) * 6;
+          const _spikeDirX = d > 0 ? (e.x - b.x) / d : ((Math.abs(e.vx) > 0.001 || Math.abs(e.vy) > 0.001) ? e.vx / Math.hypot(e.vx, e.vy) : Math.cos(e.angle || 0));
+          const _spikeDirY = d > 0 ? (e.y - b.y) / d : ((Math.abs(e.vx) > 0.001 || Math.abs(e.vy) > 0.001) ? e.vy / Math.hypot(e.vx, e.vy) : Math.sin(e.angle || 0));
+          const _spikePush = Math.max(0, (minD + 18) - d) * 0.9;
+          if (d < minD + 20) {
+            e.x += _spikeDirX * _spikePush;
+            e.y += _spikeDirY * _spikePush;
+            e.vx += _spikeDirX * 9; e.vy += _spikeDirY * 9;
           }
           if (!e._lastSpikeHitTime || now - e._lastSpikeHitTime > 400) {
             e._lastSpikeHitTime = now;
@@ -12613,8 +12633,8 @@ function update(timestamp = 0) {
     camY += (player.y - canvas.height/2 - camY) * _camFactor;
   }
 
-  // ── PC & Mobil Kamera Yakınlığı (hafifçe daha uzakta, daha stabil, daha az stutter) ──
-  const _baseTarget = _onTrain ? (_isMobile ? 0.52 : 0.56) : (_isMobile ? 0.72 : 0.74);
+  // ── PC & Mobil Kamera Yakınlığı (mobilde biraz daha uzakta, daha stabil ve daha az stutter) ──
+  const _baseTarget = _onTrain ? (_isMobile ? 0.52 : 0.56) : (_isMobile ? 0.80 : 0.74);
   const _zoomTarget = Math.max(0.72, Math.min(1.00, _baseTarget * _userZoomMultiplier));
   ZOOM += (_zoomTarget - ZOOM) * 0.09;
 
