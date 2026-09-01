@@ -5375,8 +5375,7 @@ function tryPlaceBuilding() {
     return null;
   }
   if (_ghostBuildPos && _ghostBuildPos.blocked) {
-    const ownB = _findOwnBldAtGhost(_ghostBuildPos.x, _ghostBuildPos.y);
-    if (ownB) { showBuildUpgradePanel(ownB); return; }
+    hideBuildUpgradePanel();
     floatingTexts.push({ x: player.x, y: player.y - 50, text: '⛔ ALAN DOLU!', alpha: 1, life: 35, color: '#ff4444' });
     return;
   }
@@ -5384,8 +5383,7 @@ function tryPlaceBuilding() {
   for (const b of buildings) {
     if (b.hp <= 0) continue;
     if (_bldOverlap(bx, by, b)) {
-      const ownB2 = _findOwnBldAtGhost(bx, by);
-      if (ownB2) { showBuildUpgradePanel(ownB2); return; }
+      hideBuildUpgradePanel();
       floatingTexts.push({ x: player.x, y: player.y - 50, text: '⛔ ALAN DOLU!', alpha: 1, life: 35, color: '#ff4444' });
       return;
     }
@@ -5397,7 +5395,7 @@ function tryPlaceBuilding() {
     const bId = `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
     _lastPlacedClientId = bId; // save so build_limit_reached can remove ghost
     _lastBuildPlaceTime = Date.now();
-    const newB = { x: bx, y: by, type: player.weapon, angle: player.angle, life: 0, hp: mHp, maxHp: mHp, shake: 0, hitTimer: 0, _netId: bId, _ownerId: _mySocketId, _spawnAnim: 0, tier: 0 };
+    const newB = { x: bx, y: by, type: player.weapon, angle: player.angle, life: 0, hp: mHp, maxHp: mHp, shake: 0, hitTimer: 0, _netId: bId, _ownerId: _mySocketId, _spawnAnim: 0, _hpBarVisibleUntil: 0, tier: 0 };
     for(let pi=0;pi<8;pi++){const pa=Math.random()*Math.PI*2;_spawnParticle(bx+Math.cos(pa)*18,by+Math.sin(pa)*18,Math.cos(pa)*4.5,Math.sin(pa)*4.5-2,3+Math.random()*3,18+Math.random()*10,['#ffe066','#ffcc33','#ffaa00'][Math.floor(Math.random()*3)]);}
     buildings.push(newB);
     if (newB._netId) _buildingsMap.set(newB._netId, newB);
@@ -5444,16 +5442,13 @@ const _BUP_THEMES = {
 };
 
 function showBuildUpgradePanel(b) {
-  _bup_building = b;
-  _refreshBuildUpgradePanel();
-  const pnl = document.getElementById('build-upg-panel');
-  pnl.classList.add('bup-open');
-  // Pause resize for 300ms so CSS panel open animation cannot trigger canvas resize on iOS
-  _resizePauseUntil = Date.now() + 300;
+  _bup_building = null;
+  hideBuildUpgradePanel();
 }
 function hideBuildUpgradePanel() {
   _bup_building = null;
-  document.getElementById('build-upg-panel').classList.remove('bup-open');
+  const pnl = document.getElementById('build-upg-panel');
+  if (pnl) pnl.classList.remove('bup-open');
 }
 function _refreshBuildUpgradePanel() {
   if (!_bup_building) return;
@@ -11716,6 +11711,8 @@ function update(timestamp = 0) {
     const b = buildings[i];
     b.life++;
     if (b.hitTimer > 0) b.hitTimer--;
+    if ((b._hpBarVisibleUntil || 0) > 0 && b._hpBarVisibleUntil <= globalTime) b._hpBarVisibleUntil = 0;
+    if (b.hitTimer > 0) b._hpBarVisibleUntil = Math.max(b._hpBarVisibleUntil || 0, globalTime + 120);
     const dx = player.x - b.x, dy = player.y - b.y;
     const distSq = dx * dx + dy * dy;
 
@@ -12223,7 +12220,7 @@ function update(timestamp = 0) {
           }
           if (now - e.lastBuildHit > 1200) {
             const wallDmg = Math.round(e.dmg * 0.8);
-            b.hp -= wallDmg; b.shake = 6; b.hitTimer = 60;
+            b.hp -= wallDmg; b.shake = 6; b.hitTimer = 60; b._hpBarVisibleUntil = globalTime + 120;
             e.lastBuildHit = now;
             floatingTexts.push({ x: b.x, y: b.y - 40, text: '-' + wallDmg, alpha: 1, life: 28, color: '#ff8844' });
           }
@@ -12267,7 +12264,7 @@ function update(timestamp = 0) {
           }
           if (now - e.lastBuildHit > 1500) {
             const wallDmg = Math.max(1, Math.round(e.dmg * 0.6));
-            b.hp -= wallDmg; b.shake = 5; b.hitTimer = 60;
+            b.hp -= wallDmg; b.shake = 5; b.hitTimer = 60; b._hpBarVisibleUntil = globalTime + 120;
             e.lastBuildHit = now;
             floatingTexts.push({ x: b.x, y: b.y - 38, text: '-' + wallDmg, alpha: 1, life: 25, color: '#cc8866' });
           }
@@ -12282,7 +12279,7 @@ function update(timestamp = 0) {
           }
           if (now - e.lastBuildHit > 2000) {
             const castleDmg = Math.max(1, Math.round(e.dmg * 0.4));
-            b.hp -= castleDmg; b.shake = 4; b.hitTimer = 60;
+            b.hp -= castleDmg; b.shake = 4; b.hitTimer = 60; b._hpBarVisibleUntil = globalTime + 120;
             e.lastBuildHit = now;
             floatingTexts.push({ x: b.x, y: b.y - 42, text: '-' + castleDmg, alpha: 1, life: 25, color: '#aa9966' });
           }
@@ -12957,18 +12954,20 @@ function update(timestamp = 0) {
     } else { drawBuilding(b); }
   }
 
-  // Layer 4: building HP bars — color-coded + hit flash
+  // Layer 4: building HP bars — visible to everyone when damaged; fade back after 2s when healthy
   for (let _bi = 0; _bi < _vbAll.length; _bi++) {
     const b = _vbAll[_bi];
-    if (b.hp >= b.maxHp && b.hitTimer <= 0) continue;
+    const _hpShow = b.hp < b.maxHp || b.hitTimer > 0 || (b._hpBarVisibleUntil || 0) > globalTime;
+    if (!_hpShow) continue;
     const _bHpR = Math.max(0, b.hp / b.maxHp);
     const _bRad  = _BLD_RADII[b.type] || 36;
     const _bBx   = b.x, _bBy = b.y - _bRad - 18;
     const _bBw   = 66, _bBh = 9;
-    // Background
+    const _fade = b.hp >= b.maxHp && b.hitTimer <= 0 ? Math.max(0, 1 - ((globalTime - (b._hpBarVisibleUntil || globalTime)) / 20)) : 1;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, Math.max(0.15, _fade));
     ctx.fillStyle = 'rgba(0,0,0,0.72)';
     ctx.beginPath(); ctx.roundRect(_bBx - _bBw/2 - 2, _bBy - 2, _bBw + 4, _bBh + 4, 4); ctx.fill();
-    // PERF: index into pre-built 256-step color table — zero string allocation per frame
     const _bCol = _bHpColors[Math.min(255, _bHpR * 255 | 0)];
     if (_bHpR > 0) {
       ctx.fillStyle = _bCol;
@@ -12976,7 +12975,6 @@ function update(timestamp = 0) {
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       ctx.beginPath(); ctx.roundRect(_bBx - _bBw/2 + 1, _bBy + 1, Math.max(0, _bBw * _bHpR - 2), 3, 2); ctx.fill();
     }
-    // Hit flash: white overlay that fades with hitTimer
     if (b.hitTimer > 0) {
       const _fa = Math.min(1, b.hitTimer / 20) * 0.62;
       ctx.fillStyle = `rgba(255,255,255,${_fa})`;
@@ -12984,6 +12982,7 @@ function update(timestamp = 0) {
     }
     ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.roundRect(_bBx - _bBw/2 - 2, _bBy - 2, _bBw + 4, _bBh + 4, 4); ctx.stroke();
+    ctx.restore();
   }
 
   // Layer 4b: other players (behind the local player)
@@ -13486,17 +13485,13 @@ function _findOwnBldAt(clientX, clientY) {
 }
 
 function _toggleUpgPanel(b) {
-  const pnl = document.getElementById('build-upg-panel');
-  if (_bup_building === b && pnl.classList.contains('bup-open')) hideBuildUpgradePanel();
-  else showBuildUpgradePanel(b);
+  hideBuildUpgradePanel();
 }
 
 function _handleBuildInteraction(e) {
   if (!e || e.button === 2) return;
   _tryInitAudio();
   if (player.weapon === 10) { fireBowArrow(); return; }
-  const hit = _findOwnBldAt(e.clientX, e.clientY);
-  if (hit) { _toggleUpgPanel(hit); return; }
   hideBuildUpgradePanel();
   player.isAttacking = true;
 }
@@ -13651,7 +13646,7 @@ function initMultiplayer() {
     Object.entries(remoteBuildings).forEach(([bid, b]) => {
       if (!_buildingsMap.has(bid)) {
         const _nb = { x: b.x, y: b.y, type: b.type, angle: b.angle, life: 0,
-          hp: b.hp, maxHp: b.maxHp, tier: b.tier || 0, shake: 0, hitTimer: 0, _netId: bid, _ownerId: b.ownerId, ownerClanId: b.ownerClanId || '', _remote: true, _spawnAnim: 1 };
+          hp: b.hp, maxHp: b.maxHp, tier: b.tier || 0, shake: 0, hitTimer: 0, _netId: bid, _ownerId: b.ownerId, ownerClanId: b.ownerClanId || '', _remote: true, _spawnAnim: 0, _hpBarVisibleUntil: 0 };
         buildings.push(_nb);
         _buildingsMap.set(bid, _nb);
         if (_nb.type === 10) _campfires.push(_nb);
@@ -14191,10 +14186,9 @@ function initMultiplayer() {
   _socket.on('trap_caught', ({ buildingId }) => {
     if (!player || player.dead) return;
     _trapCaughtBy = buildingId;
+    _trapCaughtX = player.x;
+    _trapCaughtY = player.y;
     player.vx = 0; player.vy = 0; player.momX = 0; player.momY = 0;
-    // Tuzağın merkezine hemen sabitle
-    const _trapB = _buildingsMap.get(buildingId) || buildings.find(x => (x._netId === buildingId || x.id === buildingId));
-    if (_trapB) { player.x = _trapB.x; player.y = _trapB.y; }
     playSound(180, 0.18, 'sawtooth', 0.35);
   });
 
@@ -14223,21 +14217,29 @@ function initMultiplayer() {
   // Trap owner slowly pushed us — update our position
   _socket.on('trap_victim_push', ({ dx, dy }) => {
     if (!player || player.dead || !_trapCaughtBy) return;
+    if (typeof dx !== 'number' || typeof dy !== 'number') return;
     player.x += dx;
     player.y += dy;
+    _trapCaughtX = player.x;
+    _trapCaughtY = player.y;
     const _bnd = PLAY_RADIUS - player.radius - 10;
     player.x = Math.max(-_bnd, Math.min(_bnd, player.x));
     player.y = Math.max(-_bnd, Math.min(_bnd, player.y));
-    // If owner pushed us outside trap radius → auto-free
+    _trapCaughtX = player.x;
+    _trapCaughtY = player.y;
     const _ptb = _buildingsMap.get(_trapCaughtBy); // O(1) — was buildings.find()
     if (_ptb) {
       const _pdist = Math.hypot(player.x - _ptb.x, player.y - _ptb.y);
       if (_pdist > (_ptb.radius || 26) + 44) {
         _trapCaughtBy = null;
+        _trapCaughtX = undefined;
+        _trapCaughtY = undefined;
         playSound(320, 0.12, 'sine', 0.22);
       }
     } else {
       _trapCaughtBy = null;
+      _trapCaughtX = undefined;
+      _trapCaughtY = undefined;
     }
   });
 

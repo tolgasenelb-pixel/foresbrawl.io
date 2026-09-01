@@ -1017,6 +1017,8 @@ io.on('connection', (socket) => {
     if (!target || target.hp <= 0) return;
     if (owner && ((owner.clanId && owner.clanId === target.clanId) || (owner.team && target.team && owner.team === target.team))) return;
     target.trappedBy = data.buildingId;
+    target.trappedX = target.x;
+    target.trappedY = target.y;
     target.trappedUntil = Date.now() + 4000;
     target.vx = 0;
     target.vy = 0;
