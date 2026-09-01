@@ -1159,7 +1159,7 @@
 
         function updateGoldDisplays() {
             const gold = getPlayerGold();
-            const formatGold = (value) => `${value.toLocaleString()} <span class="gold-token">🪙</span>`;
+            const formatGold = (value) => `${value.toLocaleString()} <span class="gold-token"><i class="fa-solid fa-coins"></i></span>`;
             const hg = document.getElementById('header-gold');
             if (hg) hg.innerHTML = formatGold(gold);
             const sg = document.getElementById('shop-gold-display');
@@ -1917,7 +1917,6 @@
                             <span class="font-io ${isTop1 ? 'text-yellow-400 text-base' : isTop2 ? 'text-slate-300' : isTop3 ? 'text-amber-500' : 'text-gray-400'} stroke-text w-5 text-center flex-shrink-0">
                                 ${idx + 1}.
                             </span>
-                            ${isTop1 ? '<i class="fa-solid fa-crown text-yellow-400 flex-shrink-0"></i>' : ''}
                             <div class="flex flex-col min-w-0">
                                 <span class="text-white font-black text-xs sm:text-sm drop-shadow-md truncate max-w-[150px]">${entry.name}</span>
                                 <span class="text-[9px] font-black text-yellow-300/80">Lv.${rankId + 1} ${rankTitle} ${timeBadge ? `• <span class="text-white/50">${timeBadge}</span>` : ''}</span>
@@ -1925,7 +1924,7 @@
                         </div>
                         <div class="flex items-center gap-3 flex-shrink-0">
                             <span class="text-green-400 font-black text-[10px]">⚔️ ${entry.kills || 0}</span>
-                            <span class="font-io text-yellow-400 text-xs sm:text-sm stroke-text">${scoreVal.toLocaleString()} 🪙</span>
+                            <span class="font-io text-yellow-400 text-xs sm:text-sm stroke-text">${scoreVal.toLocaleString()} <i class="fa-solid fa-coins text-yellow-400"></i></span>
                         </div>
                     `;
                     container.appendChild(row);
