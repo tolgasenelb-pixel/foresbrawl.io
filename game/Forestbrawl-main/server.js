@@ -56,6 +56,7 @@ function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
 
 const RANKS = [0, 500, 1500, 3500, 7000, 12000, 20000, 35000, 60000, 100000, 180000, 300000];
 const RANK_NAMES = ['Tohum', 'Taş', 'Köylü', 'Acemi', 'Savaşçı', 'Muhafız', 'Ateş Efendisi', 'Kristal', 'Fırtına', 'Gece Hanı', 'Efsane', 'Tanrısal'];
+const RANK_ICONS = ['🌱', '🪨', '🪵', '🏹', '⚔️', '🛡️', '🔥', '💎', '🌪️', '🌙', '👑', '✨'];
 
 function rankInfo(xp) {
   let rankId = 0;
@@ -72,6 +73,8 @@ function rankInfo(xp) {
     rankId,
     level: rankId + 1,
     name: RANK_NAMES[rankId] || 'Tohum',
+    icon: RANK_ICONS[rankId] || '🌱',
+    nextIcon: RANK_ICONS[Math.min(rankId + 1, RANK_ICONS.length - 1)] || '🌱',
     minXP: currentMin,
     nextMinXP: nextMin,
     xpProgress: Math.round(xpProgress * 100) / 100,
@@ -87,6 +90,9 @@ function publicUser(user) {
     email: user.email,
     rankId: rInfo.rankId,
     rankName: rInfo.name,
+    rankIcon: rInfo.icon,
+    nextRankName: rInfo.rankId < RANKS.length - 1 ? RANK_NAMES[rInfo.rankId + 1] : null,
+    nextRankIcon: rInfo.nextIcon,
     level: rInfo.level,
     score: user.score || 0,
     kills: user.kills || 0,
@@ -115,7 +121,10 @@ function profileResponse(user) {
     level: rank.level,
     xp: user.xp || 0,
     xpProgress: rank.xpProgress,
-    xpToNextRank: rank.xpToNextRank
+    xpToNextRank: rank.xpToNextRank,
+    currentRankIcon: rank.icon,
+    nextRankIcon: rank.nextIcon,
+    nextRankName: rank.rankId < RANKS.length - 1 ? RANK_NAMES[rank.rankId + 1] : null
   };
 }
 

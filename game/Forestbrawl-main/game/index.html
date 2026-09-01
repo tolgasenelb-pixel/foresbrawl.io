@@ -324,9 +324,13 @@
                 padding-right: 0.5rem !important;
             }
 
+            #modalOverlay {
+                padding: 0.75rem;
+            }
+
             .modal-content {
                 width: min(96vw, 420px) !important;
-                max-height: 86vh;
+                max-height: calc(100vh - 1rem);
             }
 
             #shopModal.modal-content,
@@ -628,10 +632,12 @@
                     </div>
                     <div class="flex flex-col flex-1">
                         <span id="prof-username" class="font-io text-lg text-white stroke-text leading-tight">Gölge_Avcısı</span>
-                        <div class="flex items-center gap-2 mt-1">
+                        <div class="flex items-center gap-2 mt-1 flex-wrap">
                             <span id="prof-rank-name" class="bg-gradient-to-r from-yellow-400 to-amber-500 text-black px-2 py-0.5 rounded font-io text-xs shadow">Lv.1 Tohum</span>
+                            <span id="prof-rank-icon" class="bg-black/50 px-2 py-0.5 rounded text-[10px] text-yellow-300 font-black border border-yellow-500/40">🌱</span>
                             <span id="prof-gold-badge" class="bg-black/50 px-2 py-0.5 rounded text-[10px] text-[#FFDF73] font-black border border-yellow-500/40">🪙 1,500</span>
                         </div>
+                        <div id="prof-next-rank" class="text-[10px] font-black text-[#9FE870] mt-1">➡️ 🪨 Taş: 350 XP kaldı</div>
                     </div>
                 </div>
 
@@ -1124,6 +1130,7 @@
         };
 
         const RANKS = ['Tohum', 'Taş', 'Köylü', 'Acemi', 'Savaşçı', 'Muhafız', 'Ateş Efendisi', 'Kristal', 'Fırtına', 'Gece Hanı', 'Efsane', 'Tanrısal'];
+        const RANK_ICONS = ['🌱', '🪨', '🪵', '🏹', '⚔️', '🛡️', '🔥', '💎', '🌪️', '🌙', '👑', '✨'];
 
         /* ════════════════════════════════════════════════════════════════
            2. DURUM YÖNETİMİ & RESİM ÖNBELLEĞİ
@@ -1161,7 +1168,28 @@
             updateGoldDisplays();
         }
         function getOwnedItems() {
-            return JSON.parse(localStorage.getItem('fb_acc_owned') || '[]');
+            try {
+                const raw = JSON.parse(localStorage.getItem('fb_acc_owned') || '[]');
+                return Array.isArray(raw) ? [...new Set(raw.filter(Boolean).map(String))] : [];
+            } catch {
+                return [];
+            }
+        }
+        function getEquippedItems() {
+            try {
+                const raw = JSON.parse(localStorage.getItem('fb_acc_equipped') || '{}');
+                return raw && typeof raw === 'object' ? Object.fromEntries(Object.entries(raw).filter(([, v]) => v != null && String(v).trim() !== '').map(([k, v]) => [k, String(v)])) : {};
+            } catch {
+                return {};
+            }
+        }
+        function normalizeOwnedItems(raw) {
+            if (!Array.isArray(raw)) return getOwnedItems();
+            return [...new Set(raw.filter(Boolean).map(String))];
+        }
+        function normalizeEquippedItems(raw) {
+            if (!raw || typeof raw !== 'object') return getEquippedItems();
+            return Object.fromEntries(Object.entries(raw).filter(([, v]) => v != null && String(v).trim() !== '').map(([k, v]) => [String(k), String(v)]));
         }
         function isItemOwned(item) {
             if (!item) return false;
@@ -1323,7 +1351,66 @@
         /* ════════════════════════════════════════════════════════════════
            6. AUTH & PROFİL
         ════════════════════════════════════════════════════════════════ */
+        function persistPlayerProfileState() {
+            const owned = getOwnedItems();
+            const equipped = getEquippedItems();
+            const xp = getPlayerTotalXp();
+            const snapshot = {
+                username: document.getElementById('name-input')?.value?.trim() || _authUser?.username || localStorage.getItem('fb_name') || 'Gölge_Avcısı',
+                gold: getPlayerGold(),
+                coins: getPlayerGold(),
+                xp,
+                rankId: getRankIdByXp(xp),
+                skin: _currentSkin,
+                weapon: _equippedWeapon,
+                ownedItems: owned,
+                equippedItems: equipped
+            };
+            localStorage.setItem('fb_acc_owned', JSON.stringify(owned));
+            localStorage.setItem('fb_acc_equipped', JSON.stringify(equipped));
+            localStorage.setItem('fb_profile', JSON.stringify(snapshot));
+            localStorage.setItem('fb_user_xp', String(xp));
+            localStorage.setItem('fb_name', snapshot.username);
+            localStorage.setItem('fb_skin', _currentSkin);
+            localStorage.setItem('fb_weapon_skin', _equippedWeapon);
+            if (_authUser) {
+                localStorage.setItem('fb_auth_user', JSON.stringify({ ..._authUser, username: snapshot.username, xp, coins: snapshot.gold, gold: snapshot.gold, rankId: snapshot.rankId, ownedItems: owned, equippedItems: equipped }));
+            }
+        }
+
+        function hydratePlayerProfileState(user = null) {
+            try {
+                const storedProfile = JSON.parse(localStorage.getItem('fb_profile') || '{}');
+                const savedOwned = Array.isArray(storedProfile.ownedItems) ? storedProfile.ownedItems : getOwnedItems();
+                const savedEquipped = storedProfile.equippedItems && typeof storedProfile.equippedItems === 'object' ? storedProfile.equippedItems : getEquippedItems();
+                const savedSkin = localStorage.getItem('fb_skin') || storedProfile.skin || 'wolf';
+                const savedWeapon = localStorage.getItem('fb_weapon_skin') || storedProfile.weapon || 'ki_tier_0';
+                _currentSkin = savedSkin;
+                _equippedWeapon = savedWeapon;
+                localStorage.setItem('fb_acc_owned', JSON.stringify(getOwnedItems().length ? getOwnedItems() : savedOwned));
+                localStorage.setItem('fb_acc_equipped', JSON.stringify(Object.keys(getEquippedItems()).length ? getEquippedItems() : savedEquipped));
+                if (savedEquipped.deriler) _currentSkin = savedEquipped.deriler;
+                if (savedEquipped.kiliclar || savedEquipped.baltalar) _equippedWeapon = savedEquipped.kiliclar || savedEquipped.baltalar || _equippedWeapon;
+                if (user) {
+                    const owned = normalizeOwnedItems(Array.isArray(user.ownedItems) ? user.ownedItems : savedOwned);
+                    const equipped = normalizeEquippedItems(user.equippedItems && typeof user.equippedItems === 'object' ? user.equippedItems : savedEquipped);
+                    localStorage.setItem('fb_acc_owned', JSON.stringify(owned));
+                    localStorage.setItem('fb_acc_equipped', JSON.stringify(equipped));
+                    if (equipped.deriler) _currentSkin = equipped.deriler;
+                    if (equipped.kiliclar || equipped.baltalar) _equippedWeapon = equipped.kiliclar || equipped.baltalar || _equippedWeapon;
+                    if (typeof user.xp === 'number') localStorage.setItem('fb_user_xp', String(user.xp));
+                    if (typeof user.coins === 'number') setPlayerGold(user.coins);
+                }
+                localStorage.setItem('fb_skin', _currentSkin);
+                localStorage.setItem('fb_weapon_skin', _equippedWeapon);
+                persistPlayerProfileState();
+            } catch (error) {
+                console.warn('Profile hydration failed:', error);
+            }
+        }
+
         function checkAuthStatus() {
+            hydratePlayerProfileState(_authUser);
             if (_authToken && _authUser) {
                 document.getElementById('header-guest-view').classList.add('hidden');
                 document.getElementById('header-user-view').classList.remove('hidden');
@@ -1332,7 +1419,8 @@
                 const hu = document.getElementById('header-username');
                 if (hu) hu.textContent = _authUser.username;
                 const hr = document.getElementById('header-rank');
-                if (hr) hr.textContent = `Lv.${(_authUser.rankId || 0) + 1} ${RANKS[_authUser.rankId || 0] || 'Savaşçı'}`;
+                const rankId = getRankIdByXp(Number(_authUser.xp ?? getPlayerTotalXp()));
+                if (hr) hr.textContent = `Lv.${rankId + 1} ${RANKS[rankId] || 'Savaşçı'} ${RANK_ICONS[rankId] || ''}`;
                 
                 const ni = document.getElementById('name-input');
                 if (ni && !ni.value) ni.value = _authUser.username;
@@ -1345,6 +1433,7 @@
                 document.getElementById('header-user-view').classList.add('hidden');
             }
             updateGoldDisplays();
+            persistPlayerProfileState();
         }
 
         async function handleLogin() {
@@ -1460,6 +1549,7 @@
                         if (pData.user) {
                             _authUser = pData.user;
                             localStorage.setItem('fb_auth_user', JSON.stringify(pData.user));
+                            hydratePlayerProfileState(pData.user);
                         }
                     }
                 } catch(e) {}
@@ -1467,15 +1557,14 @@
 
             const totalXp = getPlayerTotalXp();
             const rankId = getRankIdByXp(totalXp);
+            const currentBase = RANK_XP_THRESHOLDS[rankId] ?? 0;
+            const nextBase = RANK_XP_THRESHOLDS[Math.min(rankId + 1, RANK_XP_THRESHOLDS.length - 1)] ?? currentBase;
+            const totalRange = Math.max(1, nextBase - currentBase);
+            const progressInRank = Math.max(0, totalXp - currentBase);
+            const pct = rankId >= RANK_XP_THRESHOLDS.length - 1 ? 100 : Math.min(100, Math.max(0, Math.round((progressInRank / totalRange) * 100)));
+            const neededToNext = rankId >= RANK_XP_THRESHOLDS.length - 1 ? 0 : Math.max(0, nextBase - totalXp);
             const currentRankName = RANKS[rankId] || 'Tohum';
-            const nextRankName = RANKS[Math.min(rankId + 1, 11)];
-            const currentBase = RANK_XP_THRESHOLDS[rankId];
-            const nextBase = RANK_XP_THRESHOLDS[Math.min(rankId + 1, 11)];
-            
-            const progressInRank = totalXp - currentBase;
-            const neededInRank = rankId >= 11 ? 1 : (nextBase - currentBase);
-            const pct = rankId >= 11 ? 100 : Math.min(100, Math.max(0, Math.round((progressInRank / neededInRank) * 100)));
-            const neededToNext = Math.max(0, nextBase - totalXp);
+            const nextRankName = RANKS[Math.min(rankId + 1, RANKS.length - 1)] || currentRankName;
 
             const u = _authUser || { 
                 username: document.getElementById('name-input')?.value || 'Misafir', 
@@ -1490,10 +1579,12 @@
             
             document.getElementById('prof-username').textContent = u.username;
             document.getElementById('prof-rank-name').textContent = `Lv.${rankId + 1} ${currentRankName}`;
+            document.getElementById('prof-rank-icon').textContent = RANK_ICONS[rankId] || '🌱';
+            document.getElementById('prof-next-rank').textContent = rankId >= RANKS.length - 1 ? '➡️ ✨ Maksimum rütbe' : `➡️ ${RANK_ICONS[Math.min(rankId + 1, RANK_ICONS.length - 1)] || '🌱'} ${nextRankName}: ${neededToNext.toLocaleString()} XP kaldı`;
             
-            if (rankId >= 11) {
+            if (rankId >= RANKS.length - 1) {
                 document.getElementById('prof-xp-text').textContent = `${totalXp.toLocaleString()} XP (MAKSİMUM SEVİYE)`;
-                document.getElementById('prof-remaining-xp').textContent = `En yüksek rütbeye ulaştın! 👑`;
+                document.getElementById('prof-remaining-xp').textContent = 'En yüksek rütbeye ulaştın! 👑';
             } else {
                 document.getElementById('prof-xp-text').textContent = `${totalXp.toLocaleString()} / ${nextBase.toLocaleString()} XP (${pct}%)`;
                 document.getElementById('prof-remaining-xp').textContent = `Sonraki Seviye (${nextRankName}) için: ${neededToNext.toLocaleString()} XP kaldı`;
@@ -1626,25 +1717,28 @@
         }
 
         function equipCosmeticItem(id, cat) {
-            const shopAcc = JSON.parse(localStorage.getItem('fb_acc_equipped') || '{}');
+            const shopAcc = getEquippedItems();
             if (cat === 'deriler') {
                 _currentSkin = id;
+                shopAcc.deriler = id;
                 localStorage.setItem('fb_skin', id);
+                localStorage.setItem('fb_acc_equipped', JSON.stringify(shopAcc));
                 const char = REAL_SKINS.find(c => c.id === id);
                 if (char) document.getElementById('active-pet-name').textContent = char.name;
                 const avi = document.getElementById('header-avatar-img');
                 if (avi) avi.src = `players/${_currentSkin}.png`;
             } else if (cat === 'baltalar') {
                 _equippedWeapon = id;
-                localStorage.setItem('fb_weapon_skin', id);
                 shopAcc.baltalar = id;
+                localStorage.setItem('fb_weapon_skin', id);
                 localStorage.setItem('fb_acc_equipped', JSON.stringify(shopAcc));
             } else if (cat === 'kiliclar') {
                 _equippedWeapon = id;
-                localStorage.setItem('fb_weapon_skin', id);
                 shopAcc.kiliclar = id;
+                localStorage.setItem('fb_weapon_skin', id);
                 localStorage.setItem('fb_acc_equipped', JSON.stringify(shopAcc));
             }
+            persistPlayerProfileState();
             
             if (_authToken) {
                 fetch('/api/shop/equip', {
