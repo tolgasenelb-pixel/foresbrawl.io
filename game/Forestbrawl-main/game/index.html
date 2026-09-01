@@ -57,13 +57,40 @@
 
         html, body {
             width: 100%;
-            height: 100%;
+            min-height: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
             background-color: var(--bg-forest);
             font-family: 'Nunito', sans-serif;
             touch-action: manipulation;
+        }
+
+        body {
+            min-height: 100vh;
+            padding: 12px 10px 18px;
+        }
+
+        .gold-token {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.1em;
+            color: #ffd54f;
+            text-shadow: 0 0 10px rgba(255, 213, 79, 0.8);
+        }
+
+        .gold-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 2px solid rgba(255, 213, 79, 0.55);
+            background: rgba(0, 0, 0, 0.22);
+            color: #ffdf73;
+            font-family: 'Lilita One', cursive;
         }
 
         /* --- TİPOGRAFİ (Net, Temiz, Gölyesiz ve Yüksek Kontrastlı) --- */
@@ -115,6 +142,11 @@
             font-family: 'Lilita One', cursive;
             box-shadow: 0 4px 0 var(--border-heavy);
             z-index: 10;
+        }
+
+        .modal-content {
+            max-height: min(86vh, 820px);
+            overflow: auto;
         }
 
         /* --- 3D BUTONLAR --- */
@@ -262,6 +294,35 @@
         }
         @keyframes slideDown { from { transform: translateY(-30px) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
         @keyframes fadeOut { to { opacity: 0; visibility: hidden; margin-top: -40px; } }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 8px 8px 20px;
+            }
+
+            header {
+                left: 6px !important;
+                right: 6px !important;
+                top: 6px !important;
+            }
+
+            main {
+                margin-top: 120px !important;
+                max-width: 100% !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+            }
+
+            .modal-content {
+                max-width: min(96vw, 420px) !important;
+                max-height: 86vh;
+            }
+
+            #shopModal.modal-content,
+            #cosmeticsModal.modal-content {
+                max-width: min(96vw, 860px) !important;
+            }
+        }
 
         /* Background Canvas */
         #bgCanvas {
@@ -880,38 +941,7 @@
             <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
             
             <div class="panel-inset p-3.5 mt-4 border-[3px] flex flex-col gap-2.5">
-                <div class="bg-black/30 p-2.5 rounded-xl border border-white/10 flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 bg-green-900/60 rounded-lg flex items-center justify-center border border-green-500 text-lg">🪓</div>
-                        <div class="flex flex-col">
-                            <span class="text-white font-black text-xs">10 Ağaç Kes</span>
-                            <span class="text-[#FFDF73] font-black text-[10px]">Ödül: +150 🪙 | +50 XP</span>
-                        </div>
-                    </div>
-                    <span class="text-green-400 font-io text-sm stroke-text">5/10</span>
-                </div>
-
-                <div class="bg-black/30 p-2.5 rounded-xl border border-white/10 flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 bg-red-900/60 rounded-lg flex items-center justify-center border border-red-500 text-lg">⚔️</div>
-                        <div class="flex flex-col">
-                            <span class="text-white font-black text-xs">3 Düşman Alt Et</span>
-                            <span class="text-[#FFDF73] font-black text-[10px]">Ödül: +250 🪙 | +100 XP</span>
-                        </div>
-                    </div>
-                    <span class="text-green-400 font-io text-sm stroke-text">1/3</span>
-                </div>
-
-                <div class="bg-black/30 p-2.5 rounded-xl border border-white/10 flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 bg-amber-900/60 rounded-lg flex items-center justify-center border border-yellow-500 text-lg">🪙</div>
-                        <div class="flex flex-col">
-                            <span class="text-white font-black text-xs">500 Altın Topla</span>
-                            <span class="text-[#FFDF73] font-black text-[10px]">Ödül: +200 🪙 | +80 XP</span>
-                        </div>
-                    </div>
-                    <span class="text-green-400 font-io text-sm stroke-text">240/500</span>
-                </div>
+                <div id="challenge-list" class="flex flex-col gap-2.5"></div>
             </div>
         </div>
 
@@ -1007,6 +1037,8 @@
            1. GERÇEK OYUN VERİLERİ (players/*.png ve weapons/*.png)
         ════════════════════════════════════════════════════════════════ */
         
+        const normalizeShopPrice = (value) => Math.max(25, Math.round(Number(value || 0) * 0.28));
+
         // Oyun içi Karakter Derileri
         const REAL_SKINS = [
             { id: 'wolf',        name: 'Kurt',            img: 'players/wolf.png',        rarity: 'common', free: true,  cost: 0 },
@@ -1037,7 +1069,7 @@
             { id: 'kiz_deniz',   name: 'Deniz Savaşçısı', img: 'players/kiz_deniz.png',   rarity: 'legendary', free: false, cost: 1600 },
             { id: 'kiz_sakura',  name: 'Sakura Çiçeği',   img: 'players/kiz_sakura.png',  rarity: 'legendary', free: false, cost: 1700 },
             { id: 'kiz_karanlik',name: 'Karanlık Cadı',   img: 'players/kiz_karanlik.png',rarity: 'legendary', free: false, cost: 2400 }
-        ];
+        ].map(item => item.free || item.cost === 0 ? item : { ...item, cost: normalizeShopPrice(item.cost) });
 
         // Oyun İçi El/Kol Renkleri Haritası (play.html ile %100 aynı)
         const SKIN_ARM_COLORS = {
@@ -1060,7 +1092,7 @@
             { id: 'ki_tier_4', name: 'Obsidyen Kılıç',    img: 'weapons/sword-tier-4.png', tier: 4, cost: 1100, free: false, rarity: 'epic' },
             { id: 'ki_tier_5', name: 'Ejder Dişi Kılıç',  img: 'weapons/sword-tier-5.png', tier: 5, cost: 1600, free: false, rarity: 'epic' },
             { id: 'ki_tier_6', name: 'Tanrı Kılıcı',      img: 'weapons/sword-tier-6.png', tier: 6, cost: 2500, free: false, rarity: 'legendary' }
-        ];
+        ].map(item => item.free || item.cost === 0 ? item : { ...item, cost: normalizeShopPrice(item.cost) });
 
         // Balta Görünümleri (weapons/axe-tier-*.png)
         const REAL_AXES = [
@@ -1071,7 +1103,7 @@
             { id: 'ba_tier_4', name: 'Obsidyen Balta',    img: 'weapons/axe-tier-4.png', tier: 4, cost: 1100, free: false, rarity: 'epic' },
             { id: 'ba_tier_5', name: 'Ejder Yıkıcı Balta',img: 'weapons/axe-tier-5.png', tier: 5, cost: 1600, free: false, rarity: 'epic' },
             { id: 'ba_tier_6', name: 'Berserker Balta',   img: 'weapons/axe-tier-6.png', tier: 6, cost: 2500, free: false, rarity: 'legendary' }
-        ];
+        ].map(item => item.free || item.cost === 0 ? item : { ...item, cost: normalizeShopPrice(item.cost) });
 
         const ALL_ITEMS_MAP = {
             deriler: REAL_SKINS,
@@ -1127,12 +1159,13 @@
 
         function updateGoldDisplays() {
             const gold = getPlayerGold();
+            const formatGold = (value) => `${value.toLocaleString()} <span class="gold-token">🪙</span>`;
             const hg = document.getElementById('header-gold');
-            if (hg) hg.textContent = gold.toLocaleString();
+            if (hg) hg.innerHTML = formatGold(gold);
             const sg = document.getElementById('shop-gold-display');
-            if (sg) sg.textContent = gold.toLocaleString();
+            if (sg) sg.innerHTML = formatGold(gold);
             const pg = document.getElementById('prof-coins');
-            if (pg) pg.textContent = gold.toLocaleString();
+            if (pg) pg.innerHTML = formatGold(gold);
         }
 
         /* ════════════════════════════════════════════════════════════════
@@ -1638,7 +1671,6 @@
             if (!grid) return;
             grid.innerHTML = '';
             const items = ALL_ITEMS_MAP[_shopTab] || [];
-            // SATIN ALINMIŞ OLANLAR SHOP'TA GÖZÜKMEZ (SADECE KİLİTLİ OLANLAR GÖZÜKÜR)
             const unownedItems = items.filter(item => !isItemOwned(item));
 
             if (unownedItems.length === 0) {
@@ -1676,7 +1708,7 @@
 
                 const actionDiv = document.createElement('div');
                 actionDiv.className = 'mt-1.5 w-full';
-                actionDiv.innerHTML = `<button onclick="event.stopPropagation(); buyShopItem('${item.id}', '${_shopTab}', ${item.cost})" class="btn-3d btn-red w-full py-0.5 font-io text-[9px] stroke-text">${item.cost} 🪙</button>`;
+                actionDiv.innerHTML = `<button onclick="event.stopPropagation(); buyShopItem('${item.id}', '${_shopTab}', ${item.cost})" class="btn-3d btn-red w-full py-0.5 font-io text-[9px] stroke-text">${item.cost} <span class="gold-token">🪙</span></button>`;
                 card.appendChild(actionDiv);
 
                 grid.appendChild(card);
@@ -1690,15 +1722,18 @@
         function selectShopPreviewItem(item, cat) {
             _shopPreviewItem = { item, cat };
             document.getElementById('shop-preview-name').textContent = item.name;
-            
+
+            const owned = isItemOwned(item);
+            const equipped = (cat === 'deriler') ? (_currentSkin === item.id) : (_equippedWeapon === item.id);
             const statusEl = document.getElementById('shop-preview-status');
             const btn = document.getElementById('shop-preview-btn');
-            
-            if (isEquipped) {
+
+            if (equipped) {
                 statusEl.textContent = 'EQUIPPED';
                 statusEl.className = 'text-[10px] font-black text-green-400 block mb-1';
                 btn.textContent = 'EQUIPPED';
                 btn.className = 'btn-3d bg-green-700 w-full py-1.5 font-io text-xs stroke-text opacity-75 pointer-events-none';
+                btn.onclick = null;
             } else if (owned) {
                 statusEl.textContent = 'UNLOCKED';
                 statusEl.className = 'text-[10px] font-black text-yellow-400 block mb-1';
@@ -1721,11 +1756,13 @@
                 triggerToast('Yetersiz altın! Oyun oynayarak kazan.', 'fa-coins');
                 return;
             }
-            setPlayerGold(gold - cost);
             const owned = getOwnedItems();
-            owned.push(id);
-            localStorage.setItem('fb_acc_owned', JSON.stringify(owned));
-            
+            if (!owned.includes(id)) {
+                owned.push(id);
+                localStorage.setItem('fb_acc_owned', JSON.stringify(owned));
+            }
+            setPlayerGold(gold - cost);
+
             if (_authToken) {
                 fetch('/api/shop/buy', {
                     method: 'POST',
@@ -1738,6 +1775,69 @@
             renderShopAllGrid();
             triggerToast('Satın Alındı ve Envantere Eklendi!', 'fa-bag-shopping');
             playSfx('buy');
+        }
+
+        const CHALLENGE_DEFS = [
+            { id: 'wood', label: '10 Ahşap Kes', icon: '🪓', goal: 10, rewardCoins: 150, rewardXp: 50, color: 'green' },
+            { id: 'kills', label: '3 Düşman Alt Et', icon: '⚔️', goal: 3, rewardCoins: 250, rewardXp: 100, color: 'red' },
+            { id: 'gold', label: '500 Altın Topla', icon: '🪙', goal: 500, rewardCoins: 200, rewardXp: 80, color: 'amber' }
+        ];
+
+        function getChallengeProgress() {
+            const raw = JSON.parse(localStorage.getItem('fb_challenges') || '{}');
+            return {
+                wood: Number(raw.wood || localStorage.getItem('fb_challenge_wood') || 0),
+                kills: Number(raw.kills || localStorage.getItem('fb_challenge_kills') || 0),
+                gold: Number(raw.gold || localStorage.getItem('fb_challenge_gold') || 0)
+            };
+        }
+
+        function updateChallengeProgress() {
+            const progress = getChallengeProgress();
+            const list = document.getElementById('challenge-list');
+            if (!list) return;
+
+            list.innerHTML = CHALLENGE_DEFS.map(challenge => {
+                const current = progress[challenge.id] || 0;
+                const pct = Math.min(100, Math.round((current / challenge.goal) * 100));
+                const color = challenge.color === 'green' ? 'green' : challenge.color === 'red' ? 'red' : 'amber';
+                const progressText = `${Math.min(current, challenge.goal)}/${challenge.goal}`;
+                return `
+                    <div class="bg-black/30 p-2.5 rounded-xl border border-white/10 flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-9 h-9 bg-${color}-900/60 rounded-lg flex items-center justify-center border border-${color}-500 text-lg">${challenge.icon}</div>
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-white font-black text-xs truncate">${challenge.label}</span>
+                                <span class="text-[#FFDF73] font-black text-[10px]">Ödül: +${challenge.rewardCoins} 🪙 | +${challenge.rewardXp} XP</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-${color}-400 font-io text-sm stroke-text mb-1">${progressText}</div>
+                            <div class="w-16 h-2 bg-black/60 rounded-full overflow-hidden border border-black/40">
+                                <div class="h-full bg-${color}-500 rounded-full" style="width:${pct}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const badge = document.getElementById('challenge-badge-progress');
+            if (badge) {
+                const completed = CHALLENGE_DEFS.filter(item => (progress[item.id] || 0) >= item.goal).length;
+                badge.textContent = `${completed}/${CHALLENGE_DEFS.length}`;
+            }
+        }
+
+        function awardChallengeProgress(id, amount = 1) {
+            const progress = getChallengeProgress();
+            const def = CHALLENGE_DEFS.find(item => item.id === id);
+            if (!def) return;
+            progress[id] = Math.min(def.goal, (progress[id] || 0) + amount);
+            localStorage.setItem('fb_challenges', JSON.stringify(progress));
+            if (id === 'wood') localStorage.setItem('fb_challenge_wood', String(progress.wood));
+            if (id === 'kills') localStorage.setItem('fb_challenge_kills', String(progress.kills));
+            if (id === 'gold') localStorage.setItem('fb_challenge_gold', String(progress.gold));
+            updateChallengeProgress();
         }
 
         /* ════════════════════════════════════════════════════════════════
@@ -2069,6 +2169,7 @@
             resizeBackground();
             loadSavedSettings();
             updateAudioUI();
+            updateChallengeProgress();
             
             const savedName = localStorage.getItem('fb_name');
             if (savedName) document.getElementById('name-input').value = savedName;

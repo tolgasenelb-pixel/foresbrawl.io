@@ -2000,7 +2000,8 @@ const _BASE = window.location.pathname.replace(/\/play\.html$/, '/') || '/';
 const _GAME_MODE = urlParams.get('mode') === 'offline' ? 'offline' : 'online';
 
 const _isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth < 900;
-let ZOOM = _isMobile ? 0.42 : 0.55;
+const _lowPowerDevice = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4) || /Android\s+[1-7]|iPhone|iPad/i.test(navigator.userAgent);
+let ZOOM = _isMobile ? 0.38 : 0.50;
 let camX = 0, camY = 0, _camReady = false;
 
 // ── Large Taming.io / Sploop.io-inspired world — 4 biome families only ───────
@@ -2049,7 +2050,7 @@ function randomForestPoint() {
 // Start at the sustainable middle preset. The watcher promotes to high quality
 // only after a stable 58+ FPS window, preventing the first crowded scene from
 // immediately cutting the frame rate in half.
-let _qualityLevel = 1; // Start at moomoo-like quality; promote only after a stable FPS window
+let _qualityLevel = _lowPowerDevice ? 0 : 1; // Start in a safe preset, then adapt upward only when the device is stable
 let _qualityHoldUntil = 0;
 let _fpsArr = [], _lastFpsDrop = 0;
 // Ring buffer for FPS sampling — no push/shift GC pressure
@@ -11615,12 +11616,12 @@ function update(timestamp = 0) {
       // Adaptive quality with hysteresis — oscillating 0/1/2 made shadows pop in/out (flicker)
       const _qNow = (typeof timestamp === 'number' && timestamp) ? timestamp : performance.now();
       if (_qNow >= _qualityHoldUntil) {
-        if (avgFps < 28 && _qualityLevel > 0) {
+        if (avgFps < 24 && _qualityLevel > 0) {
           _qualityLevel--;
-          _qualityHoldUntil = _qNow + 4500;
-        } else if (avgFps >= 58 && _qualityLevel < 2) {
+          _qualityHoldUntil = _qNow + 5000;
+        } else if (avgFps >= 60 && _qualityLevel < 2) {
           _qualityLevel++;
-          _qualityHoldUntil = _qNow + 6000;
+          _qualityHoldUntil = _qNow + 7000;
         }
       }
     }
@@ -12614,9 +12615,9 @@ function update(timestamp = 0) {
     camY += (player.y - canvas.height/2 - camY) * _camFactor;
   }
 
-  // ── PC & Mobil Kamera Yakınlığı (Taming.io & MooMoo.io Tarzı Karakter Odaklı) ──
-  const _baseTarget = _onTrain ? (_isMobile ? 0.52 : 0.58) : (_isMobile ? 0.72 : 0.78);
-  const _zoomTarget = Math.max(0.65, Math.min(1.05, _baseTarget * _userZoomMultiplier));
+  // ── PC & Mobil Kamera Yakınlığı (hafifçe daha uzakta, daha stabil, daha az stutter) ──
+  const _baseTarget = _onTrain ? (_isMobile ? 0.50 : 0.56) : (_isMobile ? 0.68 : 0.74);
+  const _zoomTarget = Math.max(0.70, Math.min(1.00, _baseTarget * _userZoomMultiplier));
   ZOOM += (_zoomTarget - ZOOM) * 0.08;
 
   // ── Kamera Sınır Kelepçesi: Ekran dışı / boşluk asla görünmez ──
