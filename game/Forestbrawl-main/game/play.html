@@ -417,7 +417,7 @@ body>iframe[style]{
 .joy-zone.joy-active .joy-stick{opacity:1;}
 .joy-zone::before{
   content:"";position:absolute;inset:0;border-radius:50%;
-  border:1px solid rgba(255,255,255,0.14);pointer-events:none;
+  pointer-events:none;display:none;
 }
 @media (hover: hover) and (pointer: fine) {
   /* Desktop/mouse device — hide joysticks */
@@ -12128,14 +12128,19 @@ function update(timestamp = 0) {
     const dist = Math.hypot(dx, dy);
 
     const spd = e.speed || 0.52;
-    // Aggro: keep mobs from lunging from across the map; they should only trigger when close enough.
-    const _effAggro = Math.min(e.aggroRange || 110, 72);
+    // Do not let every mob get pulled into a universal tiny aggro radius.
+    // Each mob keeps its own detection range, but they still only chase while close enough to be threatening.
+    const _baseAggro = e.aggroRange || 110;
+    const _effAggro = Math.min(_baseAggro, 220);
+    const _aggroRetreat = _effAggro * 1.8;
     if (!e.provoked && dist < _effAggro) e.provoked = true;
-    if (e.provoked && dist > 320) e.provoked = false;
+    if (e.provoked && dist > _aggroRetreat) e.provoked = false;
     if (e.provoked) {
-      // Scale acceleration by _dt so aggro chase speed is fps-independent.
-      // Do not chase long-range targets at full speed.
-      if (dist < 420) { e.vx += (dx/dist)*spd*_dt; e.vy += (dy/dist)*spd*_dt; }
+      const _chaseScale = e.speed > 1.1 ? 0.78 : 0.9;
+      if (dist < _effAggro * 1.8) {
+        e.vx += (dx / dist) * spd * _dt * _chaseScale;
+        e.vy += (dy / dist) * spd * _dt * _chaseScale;
+      }
     } else {
       // Idle wander — roam slowly when not aggroed (timer-based, not per-frame random)
       if (!e._wanderTimer || --e._wanderTimer <= 0) {
@@ -12169,7 +12174,7 @@ function update(timestamp = 0) {
       if (_ct) { e.vx = 0; e.vy = 0; } else { e._capturedByTrap = null; e._capturedTrapRef = null; e._capturedTrapX = undefined; e._capturedTrapY = undefined; }
     }
     // Cap mob velocity so they never rubber-band or hyper-accelerate
-    const _eMaxSpd = spd * 4.5;
+    const _eMaxSpd = Math.min(spd * 3.2, 2.6 + spd * 1.2);
     const _eCurSpd = Math.sqrt(e.vx*e.vx + e.vy*e.vy);
     if (_eCurSpd > _eMaxSpd) { const _eSc = _eMaxSpd/_eCurSpd; e.vx *= _eSc; e.vy *= _eSc; }
     // dt-aware friction: use pre-cached value (same for all enemies this frame)
@@ -12690,8 +12695,8 @@ function update(timestamp = 0) {
     camY += (player.y - canvas.height/2 - camY) * _camFactor;
   }
 
-  // ── PC & Mobil Kamera Yakınlığı (oyuncudan biraz daha uzakta, daha rahat çerçeve) ──
-  const _baseTarget = _onTrain ? (_isMobile ? 0.62 : 0.66) : (_isMobile ? 0.58 : 0.56);
+  // ── PC & Mobil Kamera Yakınlığı (oyuncudan hafifçe daha uzakta, daha rahat çerçeve) ──
+  const _baseTarget = _onTrain ? (_isMobile ? 0.62 : 0.66) : (_isMobile ? 0.54 : 0.53);
   const _zoomTarget = Math.max(0.52, Math.min(0.82, _baseTarget * _userZoomMultiplier));
   ZOOM += (_zoomTarget - ZOOM) * 0.065;
 
