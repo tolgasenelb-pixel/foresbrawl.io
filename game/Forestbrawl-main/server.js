@@ -28,6 +28,18 @@ let nextAirdropId = 1;
 let currentBountyId = null;
 let lastAirdropSpawn = 0;
 
+const QUESTS_LIST = [
+  { id: 'q_wolf_5', title: 'Kurt Avcısı', desc: '5 vahşi kurt öldür', icon: '🐺', key: 'wolves', target: 5, rewardCoins: 250, rewardXp: 200 },
+  { id: 'q_bear_2', title: 'Büyük Ayı Terbiyecisi', desc: '2 orman ayısı alt et', icon: '🐻', key: 'bears', target: 2, rewardCoins: 500, rewardXp: 400 },
+  { id: 'q_scorpion_3', title: 'Çöl Akrebi Avcısı', desc: '3 akrep yok et', icon: '🦂', key: 'scorpions', target: 3, rewardCoins: 350, rewardXp: 250 },
+  { id: 'q_spider_3', title: 'Mağara Örümceği', desc: '3 zehirli örümcek öldür', icon: '🕷️', key: 'spiders', target: 3, rewardCoins: 300, rewardXp: 220 },
+  { id: 'q_pvp_kill_1', title: 'İlk Kan', desc: '1 düşman oyuncu katlet', icon: '⚔️', key: 'kills', target: 1, rewardCoins: 400, rewardXp: 300 },
+  { id: 'q_bounty_king_1', title: 'Kral Katili', desc: '1 Altın Kralı devir', icon: '👑', key: 'kingKills', target: 1, rewardCoins: 650, rewardXp: 500 },
+  { id: 'q_airdrop_1', title: 'Hazine Avcısı', desc: '1 Airdrop Sandığı aç', icon: '📦', key: 'airdrops', target: 1, rewardCoins: 350, rewardXp: 300 },
+  { id: 'q_build_15', title: 'Usta Mimar', desc: '15 savunma yapısı inşa et', icon: '🪵', key: 'buildings', target: 15, rewardCoins: 200, rewardXp: 150 },
+  { id: 'q_gold_1000', title: 'Zengin Savaşçı', desc: 'Toplam 1000 Altına ulaş', icon: '💎', key: 'gold', target: 1000, rewardCoins: 500, rewardXp: 400 }
+];
+
 let accountData = { users: {}, clans: {}, leaderboard: {}, recentDeaths: [], nextId: 1 };
 try {
   if (fs.existsSync(dataFile)) {
@@ -56,6 +68,8 @@ try {
           timePlayed: Math.max(0, Number(u.timePlayed || 0)),
           ownedItems: Array.isArray(u.ownedItems) ? [...new Set(u.ownedItems)] : [],
           equippedItems: (u.equippedItems && typeof u.equippedItems === 'object') ? { ...u.equippedItems } : {},
+          questProgress: (u.questProgress && typeof u.questProgress === 'object') ? { ...u.questProgress } : {},
+          claimedQuests: Array.isArray(u.claimedQuests) ? [...new Set(u.claimedQuests)] : [],
           createdAt: u.createdAt || Date.now(),
           lastLoginAt: u.lastLoginAt || Date.now()
         };
@@ -163,7 +177,10 @@ function publicUser(user) {
     ownedItems: user.ownedItems || [],
     equippedItems: user.equippedItems || {},
     coins: user.coins ?? 1500,
-    gold: user.coins ?? 1500
+    gold: user.coins ?? 1500,
+    questProgress: user.questProgress || {},
+    claimedQuests: user.claimedQuests || [],
+    quests: QUESTS_LIST
   };
 }
 
@@ -487,6 +504,12 @@ async function handleApi(request, response, requestPath) {
     const coinsEarned = Math.max(0, Number(body.coins ?? body.gold) || 0);
     user.coins = (user.coins || 0) + coinsEarned;
     user.gold = user.coins;
+    if (body.questProgress && typeof body.questProgress === 'object') {
+      user.questProgress = user.questProgress || {};
+      for (const [qKey, qVal] of Object.entries(body.questProgress)) {
+        user.questProgress[qKey] = (user.questProgress[qKey] || 0) + Math.max(0, Number(qVal) || 0);
+      }
+    }
     const currentRank = rankInfo(user.xp);
     user.rankId = currentRank.rankId;
     
@@ -499,6 +522,49 @@ async function handleApi(request, response, requestPath) {
       rankUp: currentRank.rankId > previousRank,
       newRankName: currentRank.name,
       newRankIcon: currentRank.icon
+    });
+    return true;
+  }
+  if (requestPath === '/api/quests/list' && request.method === 'GET') {
+    sendJson(response, 200, {
+      quests: QUESTS_LIST,
+      user: user ? publicUser(user) : null
+    });
+    return true;
+  }
+  if (requestPath === '/api/quests/claim' && request.method === 'POST') {
+    if (!user) {
+      sendJson(response, 401, { error: 'Ödül almak için giriş yapmalısınız.' });
+      return true;
+    }
+    const questId = String(body.questId || '');
+    const quest = QUESTS_LIST.find(q => q.id === questId);
+    if (!quest) {
+      sendJson(response, 400, { error: 'Geçersiz görev.' });
+      return true;
+    }
+    user.claimedQuests = user.claimedQuests || [];
+    if (user.claimedQuests.includes(questId)) {
+      sendJson(response, 400, { error: 'Bu ödül zaten alınmış.' });
+      return true;
+    }
+    user.questProgress = user.questProgress || {};
+    const currentProg = Number(user.questProgress[quest.key] || 0);
+    if (currentProg < quest.target) {
+      sendJson(response, 400, { error: 'Görev henüz tamamlanmadı.' });
+      return true;
+    }
+    user.claimedQuests.push(questId);
+    user.coins = (user.coins || 0) + quest.rewardCoins;
+    user.gold = user.coins;
+    user.xp = (user.xp || 0) + quest.rewardXp;
+    user.rankId = rankInfo(user.xp).rankId;
+    saveAccountData(true);
+    sendJson(response, 200, {
+      ok: true,
+      message: `${quest.title} tamamlandı! +${quest.rewardCoins} Altın ve +${quest.rewardXp} XP kazandınız!`,
+      claimedQuestId: questId,
+      user: publicUser(user)
     });
     return true;
   }
@@ -1057,6 +1123,25 @@ setInterval(() => {
 
 io.on('connection', (socket) => {
   socket.emit('online_count', io.engine.clientsCount);
+
+  socket.on('spectate', () => {
+    socket.data.isSpectator = true;
+    const currentPlayers = Object.fromEntries([...players].map(([id, player]) => [id, compactState(player)]));
+    socket.emit('welcome', {
+      id: socket.id,
+      players: currentPlayers,
+      buildings: Object.fromEntries(buildings),
+      worldSeed,
+      resHp: {},
+      mobs: [...mobs.values()].map(publicMob),
+      airdrops: [...airdrops.values()].map(publicAirdrop),
+      bountyId: currentBountyId,
+      isHost: false,
+      isSpectator: true
+    });
+    socket.emit('mob_ids', [...mobs.keys()]);
+  });
+
   socket.on('join', (data = {}) => {
     const authUser = verifyToken(data.token);
     socket.data.authUser = authUser || null;

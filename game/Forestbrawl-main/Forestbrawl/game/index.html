@@ -3,16 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9KY2XEKMWK"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9KY2KCMVMK"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-9KY2XEKMWK');
+      gtag('config', 'G-9KY2KCMVMK');
     </script>
     <meta name="google-site-verification" content="5HPW5h_jP5UFmpzrVQDBf94viuUajdObUgtm0JNoi5g">
     <meta name="google-site-verification" content="google36f814981b2cabaa">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="ForestBrawl.fun: Vahşi ormanda hayatta kal, kaynak topla, binalar ve savunmalar inşa et, klanını kur ve diğer oyuncularla savaş! Ücretsiz online multiplayer IO oyunu.">
+    <meta name="keywords" content="forestbrawl, forestbrawl fun, forest brawl, io oyunları, io games, survival io, multiplayer io game, taming io benzeri, starve io benzeri, online savaş oyunu">
+    <meta name="author" content="ForestBrawl Team">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <link rel="canonical" href="https://forestbrawl.fun/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://forestbrawl.fun/">
+    <meta property="og:title" content="ForestBrawl.fun - Çevrimiçi Hayatta Kalma & Savaş IO Oyunu">
+    <meta property="og:description" content="ForestBrawl ile vahşi doğada hayatta kal! Karakterini geliştir, klanını kur, binalar inşa et ve arkadaşlarınla savaş.">
+    <meta property="og:image" content="https://forestbrawl.fun/icon-512.png">
+    <meta property="og:site_name" content="ForestBrawl.fun">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://forestbrawl.fun/">
+    <meta name="twitter:title" content="ForestBrawl.fun - Çevrimiçi Hayatta Kalma & Savaş IO Oyunu">
+    <meta name="twitter:description" content="ForestBrawl ile vahşi doğada hayatta kal! Karakterini geliştir, klanını kur, binalar inşa et ve arkadaşlarınla savaş.">
+    <meta name="twitter:image" content="https://forestbrawl.fun/icon-512.png">
+
+    <!-- Google VideoGame Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "ForestBrawl.fun",
+      "url": "https://forestbrawl.fun/",
+      "image": "https://forestbrawl.fun/icon-512.png",
+      "description": "ForestBrawl: Çok oyunculu çevrimiçi hayatta kalma ve savaş IO oyunu. Binalar kur, hayvanları avla, altın kazan ve zirveye tırman.",
+      "genre": ["Action", "Survival", "Multiplayer", "IO Game"],
+      "gamePlatform": ["Web Browser", "Mobile Browser", "PC"],
+      "applicationCategory": "Game",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "operatingSystem": "Any"
+    }
+    </script>
+
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
@@ -21,7 +63,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <title>ForestBrawl.fun - Premium IO</title>
+    <title>ForestBrawl.fun - Çevrimiçi Hayatta Kalma & Savaş IO Oyunu (Oyna)</title>
 
     <!-- Tailwind CSS, Fonts & Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -964,12 +1006,23 @@
         </div>
 
         <!-- 9. GÖREVLER MODALI -->
-        <div id="challengesModal" class="panel-wood w-full max-w-[440px] p-2.5 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
-            <div class="modal-tab">DAILY CHALLENGES</div>
+        <div id="challengesModal" class="panel-wood w-full max-w-[480px] p-3 pt-6 hidden flex-col relative modal-content" onclick="event.stopPropagation()">
+            <div class="modal-tab">CHALLENGES & QUESTS</div>
             <button onclick="closeAllModals()" class="btn-3d bg-[#F4E4C6] border-[3px] border-[var(--border-heavy)] absolute top-2 right-3 w-9 h-9 rounded-lg font-io text-xl flex items-center justify-center pb-1 text-[var(--border-heavy)] z-50">✕</button>
             
-            <div class="panel-inset p-3.5 mt-4 border-[3px] flex flex-col gap-2.5">
+            <div class="flex items-center justify-between px-2 mt-3 mb-1">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-yellow-400 text-base"></i>
+                    <span class="font-io text-white text-xs stroke-text">GÖREVLER & GERÇEK ÖDÜLLER</span>
+                </div>
+                <span id="challenge-badge-progress" class="bg-black/50 text-[#79D138] px-2.5 py-0.5 rounded-full font-io text-[11px] border border-[#79D138]/40">0/9</span>
+            </div>
+
+            <div class="panel-inset p-3 border-[3px] flex flex-col gap-2.5 max-h-[380px] overflow-y-auto">
                 <div id="challenge-list" class="flex flex-col gap-2.5"></div>
+            </div>
+            <div class="text-center mt-2">
+                <span class="text-[10px] font-black text-amber-200/80"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Görevleri tamamlayıp ödüllerinizi anında hesabınıza ekleyin!</span>
             </div>
         </div>
 
@@ -1919,45 +1972,90 @@
             playSfx('buy');
         }
 
-        const CHALLENGE_DEFS = [
-            { id: 'wood', label: '10 Ahşap Kes', icon: '🪓', goal: 10, rewardCoins: 150, rewardXp: 50, color: 'green' },
-            { id: 'kills', label: '3 Düşman Alt Et', icon: '⚔️', goal: 3, rewardCoins: 250, rewardXp: 100, color: 'red' },
-            { id: 'gold', label: '500 Altın Topla', icon: '🪙', goal: 500, rewardCoins: 200, rewardXp: 80, color: 'amber' }
+        const QUESTS_LIST = [
+            { id: 'q_wolf_5', title: 'Kurt Avcısı', desc: '5 vahşi kurt öldür', icon: '🐺', key: 'wolves', target: 5, rewardCoins: 250, rewardXp: 200, color: 'amber' },
+            { id: 'q_bear_2', title: 'Büyük Ayı Terbiyecisi', desc: '2 orman ayısı alt et', icon: '🐻', key: 'bears', target: 2, rewardCoins: 500, rewardXp: 400, color: 'orange' },
+            { id: 'q_scorpion_3', title: 'Çöl Akrebi Avcısı', desc: '3 akrep yok et', icon: '🦂', key: 'scorpions', target: 3, rewardCoins: 350, rewardXp: 250, color: 'yellow' },
+            { id: 'q_spider_3', title: 'Mağara Örümceği', desc: '3 zehirli örümcek öldür', icon: '🕷️', key: 'spiders', target: 3, rewardCoins: 300, rewardXp: 220, color: 'purple' },
+            { id: 'q_pvp_kill_1', title: 'İlk Kan', desc: '1 düşman oyuncu katlet', icon: '⚔️', key: 'kills', target: 1, rewardCoins: 400, rewardXp: 300, color: 'red' },
+            { id: 'q_bounty_king_1', title: 'Kral Katili', desc: '1 Altın Kralı devir', icon: '👑', key: 'kingKills', target: 1, rewardCoins: 650, rewardXp: 500, color: 'yellow' },
+            { id: 'q_airdrop_1', title: 'Hazine Avcısı', desc: '1 Airdrop Sandığı aç', icon: '📦', key: 'airdrops', target: 1, rewardCoins: 350, rewardXp: 300, color: 'cyan' },
+            { id: 'q_build_15', title: 'Usta Mimar', desc: '15 savunma yapısı inşa et', icon: '🪵', key: 'buildings', target: 15, rewardCoins: 200, rewardXp: 150, color: 'emerald' },
+            { id: 'q_gold_1000', title: 'Zengin Savaşçı', desc: 'Toplam 1000 Altına ulaş', icon: '💎', key: 'gold', target: 1000, rewardCoins: 500, rewardXp: 400, color: 'blue' }
         ];
 
-        function getChallengeProgress() {
-            const raw = JSON.parse(localStorage.getItem('fb_challenges') || '{}');
-            return {
-                wood: Number(raw.wood || localStorage.getItem('fb_challenge_wood') || 0),
-                kills: Number(raw.kills || localStorage.getItem('fb_challenge_kills') || 0),
-                gold: Number(raw.gold || localStorage.getItem('fb_challenge_gold') || 0)
-            };
+        function getFullQuestProgress() {
+            let userProg = {};
+            if (_currentUser && _currentUser.questProgress) {
+                userProg = _currentUser.questProgress;
+            } else {
+                try {
+                    userProg = JSON.parse(localStorage.getItem('fb_quest_prog') || '{}');
+                } catch(e) {}
+            }
+            return userProg;
+        }
+
+        function getClaimedQuestsList() {
+            if (_currentUser && Array.isArray(_currentUser.claimedQuests)) {
+                return _currentUser.claimedQuests;
+            }
+            try {
+                return JSON.parse(localStorage.getItem('fb_claimed_quests') || '[]');
+            } catch(e) { return []; }
         }
 
         function updateChallengeProgress() {
-            const progress = getChallengeProgress();
             const list = document.getElementById('challenge-list');
             if (!list) return;
 
-            list.innerHTML = CHALLENGE_DEFS.map(challenge => {
-                const current = progress[challenge.id] || 0;
-                const pct = Math.min(100, Math.round((current / challenge.goal) * 100));
-                const color = challenge.color === 'green' ? 'green' : challenge.color === 'red' ? 'red' : 'amber';
-                const progressText = `${Math.min(current, challenge.goal)}/${challenge.goal}`;
+            const progress = getFullQuestProgress();
+            const claimed = getClaimedQuestsList();
+            let completedCount = 0;
+
+            list.innerHTML = QUESTS_LIST.map(q => {
+                const current = Number(progress[q.key] || 0);
+                const isClaimed = claimed.includes(q.id);
+                const isCompleted = current >= q.target;
+                if (isCompleted || isClaimed) completedCount++;
+                const pct = Math.min(100, Math.round((current / q.target) * 100));
+
+                let actionButtonHtml = '';
+                if (isClaimed) {
+                    actionButtonHtml = `<span class="px-3 py-1 bg-emerald-900/60 border border-emerald-500/50 text-emerald-400 font-io text-[11px] rounded-lg">ALINDI ✅</span>`;
+                } else if (isCompleted) {
+                    actionButtonHtml = `
+                        <button onclick="claimQuestReward('${q.id}')" class="btn-3d btn-play px-3 py-1 font-io text-[11px] stroke-text animate-pulse shadow-lg shadow-green-500/30">
+                            ÖDÜLÜ AL 🎁
+                        </button>
+                    `;
+                } else {
+                    actionButtonHtml = `<span class="text-white/50 font-io text-[11px] bg-black/40 px-2 py-0.5 rounded border border-white/10">${Math.min(current, q.target)}/${q.target}</span>`;
+                }
+
                 return `
-                    <div class="bg-black/30 p-2.5 rounded-xl border border-white/10 flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2.5 min-w-0">
-                            <div class="w-9 h-9 bg-${color}-900/60 rounded-lg flex items-center justify-center border border-${color}-500 text-lg">${challenge.icon}</div>
-                            <div class="flex flex-col min-w-0">
-                                <span class="text-white font-black text-xs truncate">${challenge.label}</span>
-                                <span class="text-[#FFDF73] font-black text-[10px]">Ödül: +${challenge.rewardCoins} 🪙 | +${challenge.rewardXp} XP</span>
+                    <div class="bg-black/35 p-2.5 rounded-xl border ${isClaimed ? 'border-emerald-500/20 opacity-75' : isCompleted ? 'border-yellow-400/60 bg-yellow-950/20' : 'border-white/10'} flex items-center justify-between gap-2.5 transition-all hover:bg-black/45">
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div class="w-10 h-10 bg-black/50 rounded-lg flex items-center justify-center border border-white/15 text-xl flex-shrink-0 shadow-inner">
+                                ${q.icon}
+                            </div>
+                            <div class="flex flex-col min-w-0 flex-1">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-white font-black text-xs truncate">${q.title}</span>
+                                    ${isCompleted && !isClaimed ? '<span class="text-[9px] bg-yellow-500/80 text-black px-1.5 rounded font-black">HAZIR!</span>' : ''}
+                                </div>
+                                <span class="text-gray-300 text-[10px] truncate">${q.desc}</span>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[#FFDF73] font-black text-[10px]"><i class="fa-solid fa-coins text-yellow-400 mr-0.5"></i>+${q.rewardCoins}</span>
+                                    <span class="text-emerald-400 font-black text-[10px]"><i class="fa-solid fa-bolt text-emerald-400 mr-0.5"></i>+${q.rewardXp} XP</span>
+                                </div>
+                                <div class="w-full h-1.5 bg-black/60 rounded-full overflow-hidden border border-black/40 mt-1">
+                                    <div class="h-full ${isClaimed ? 'bg-emerald-500' : isCompleted ? 'bg-yellow-400' : 'bg-[#79D138]'} rounded-full transition-all duration-300" style="width:${pct}%"></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <div class="text-${color}-400 font-io text-sm stroke-text mb-1">${progressText}</div>
-                            <div class="w-16 h-2 bg-black/60 rounded-full overflow-hidden border border-black/40">
-                                <div class="h-full bg-${color}-500 rounded-full" style="width:${pct}%"></div>
-                            </div>
+                        <div class="flex flex-col items-end justify-center flex-shrink-0">
+                            ${actionButtonHtml}
                         </div>
                     </div>
                 `;
@@ -1965,20 +2063,57 @@
 
             const badge = document.getElementById('challenge-badge-progress');
             if (badge) {
-                const completed = CHALLENGE_DEFS.filter(item => (progress[item.id] || 0) >= item.goal).length;
-                badge.textContent = `${completed}/${CHALLENGE_DEFS.length}`;
+                badge.textContent = `${completedCount}/${QUESTS_LIST.length}`;
+                if (completedCount === QUESTS_LIST.length) {
+                    badge.className = 'bg-emerald-600 text-white px-2.5 py-0.5 rounded-full font-io text-[11px] border border-emerald-400';
+                }
             }
         }
 
+        async function claimQuestReward(questId) {
+            const quest = QUESTS_LIST.find(q => q.id === questId);
+            if (!quest) return;
+
+            if (_authToken) {
+                try {
+                    const res = await fetch('/api/quests/claim', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + _authToken
+                        },
+                        body: JSON.stringify({ questId })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        triggerToast(data.error || 'Ödül alınamadı.', 'fa-triangle-exclamation');
+                        return;
+                    }
+                    if (data.user) {
+                        _currentUser = data.user;
+                        localStorage.setItem('fb_auth_user', JSON.stringify(data.user));
+                        localStorage.setItem('fb_gold', data.user.coins);
+                        localStorage.setItem('fb_user_rank', data.user.rankId);
+                    }
+                } catch(e) {
+                    console.error('Claim error:', e);
+                }
+            } else {
+                const claimed = getClaimedQuestsList();
+                if (claimed.includes(questId)) return;
+                claimed.push(questId);
+                localStorage.setItem('fb_claimed_quests', JSON.stringify(claimed));
+                const currentGold = getPlayerGold() + quest.rewardCoins;
+                localStorage.setItem('fb_gold', currentGold);
+            }
+
+            updateProfileUI();
+            updateChallengeProgress();
+            triggerToast(`🎉 +${quest.rewardCoins} Altın ve +${quest.rewardXp} XP Hesabınıza Eklendi!`, 'fa-gift');
+            playSfx('buy');
+        }
+
         function awardChallengeProgress(id, amount = 1) {
-            const progress = getChallengeProgress();
-            const def = CHALLENGE_DEFS.find(item => item.id === id);
-            if (!def) return;
-            progress[id] = Math.min(def.goal, (progress[id] || 0) + amount);
-            localStorage.setItem('fb_challenges', JSON.stringify(progress));
-            if (id === 'wood') localStorage.setItem('fb_challenge_wood', String(progress.wood));
-            if (id === 'kills') localStorage.setItem('fb_challenge_kills', String(progress.kills));
-            if (id === 'gold') localStorage.setItem('fb_challenge_gold', String(progress.gold));
             updateChallengeProgress();
         }
 
@@ -2157,15 +2292,6 @@
         const bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
         let bgW = window.innerWidth, bgH = window.innerHeight;
 
-        const bgParticles = Array.from({ length: 24 }, () => ({
-            x: Math.random() * bgW,
-            y: Math.random() * bgH,
-            radius: Math.random() * 3 + 1.5,
-            speedY: Math.random() * 0.4 + 0.2,
-            speedX: (Math.random() - 0.5) * 0.3,
-            alpha: Math.random() * 0.6 + 0.2
-        }));
-
         function resizeBackground() {
             if (!bgCanvas) return;
             bgW = bgCanvas.width = window.innerWidth;
@@ -2173,35 +2299,31 @@
         }
         window.addEventListener('resize', resizeBackground);
 
-        // OYUN İÇİ İLE %100 BİREBİR VE SAĞA BAKAN ÇİZİM MOTORU (Image 2 ile tam aynı)
+        // OYUN İÇİ İLE %100 BİREBİR VE SAĞA BAKAN ÇİZİM MOTORU
         function drawExactInGamePlayer(ctx, cx, cy, skinId, weaponId, t, scale = 0.7) {
             const skinImg = getLoadedImage(`players/${skinId}.png`);
             const armCol = SKIN_ARM_COLORS[skinId] || '#c4966a';
             
-            // Nefes alma titreşimi
             const breathe = Math.sin(t * 0.05) * 1.5;
             
             ctx.save();
             ctx.translate(cx, cy + breathe);
             ctx.scale(scale, scale);
 
-            // 1. Zemin Gölgesi (play.html ile aynı)
+            // 1. Zemin Gölgesi
             ctx.fillStyle = 'rgba(0,0,0,0.32)';
             ctx.beginPath();
             ctx.ellipse(0, 0, 38, 38, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // 2. Silah Resmi (Kılıç / Balta) - play.html _drawWeaponSprite ile %100 aynı (pivotX: 32, pivotY: 130)
+            // 2. Silah Resmi
             let weaponSrc = 'weapons/sword-tier-0.png';
-            let weaponKind = 'sword';
             if (weaponId && weaponId.startsWith('ba_')) {
                 const axeObj = REAL_AXES.find(a => a.id === weaponId);
                 weaponSrc = axeObj ? axeObj.img : 'weapons/axe-tier-0.png';
-                weaponKind = 'axe';
             } else if (weaponId && weaponId.startsWith('ki_')) {
                 const swordObj = REAL_SWORDS.find(s => s.id === weaponId);
                 weaponSrc = swordObj ? swordObj.img : 'weapons/sword-tier-0.png';
-                weaponKind = 'sword';
             }
             const wepImg = getLoadedImage(weaponSrc);
             if (wepImg && wepImg.complete && wepImg.naturalWidth > 0) {
@@ -2210,20 +2332,19 @@
                 ctx.restore();
             }
 
-            // 3. Eller (play.html ile %100 aynı: sağa doğru uzanan iki el, ince siyah kenarlık ve parmak parlama)
+            // 3. Eller
             for (let _ai = 0; _ai < 2; _ai++) {
                 const ay = _ai === 0 ? -13 : 20, sign = _ai === 0 ? -1 : 1;
                 ctx.save();
                 ctx.translate(30, ay);
                 ctx.fillStyle = armCol;
                 ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 3.2; // İnce ve net border
+                ctx.lineWidth = 3.2;
                 ctx.beginPath();
                 ctx.ellipse(6, 0, 18, 13, 0.18 * sign, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
 
-                // El parlama detayı
                 ctx.fillStyle = 'rgba(255,255,255,0.25)';
                 ctx.beginPath();
                 ctx.ellipse(2, -3 * sign, 7, 4, 0.2 * sign, 0, Math.PI * 2);
@@ -2231,7 +2352,7 @@
                 ctx.restore();
             }
 
-            // 4. Gövde (play.html _drawCenteredSprite ile %100 aynı - Sağa Bakan Doğal Sprite)
+            // 4. Gövde
             if (skinImg && skinImg.complete && skinImg.naturalWidth > 0) {
                 ctx.drawImage(skinImg, -63, -63, 126, 126);
             } else {
@@ -2247,32 +2368,476 @@
             ctx.restore();
         }
 
+        /* ════════════════════════════════════════════════════════════════
+           13. CANLI ARKA PLAN OYUN MOTORU & SİNEMATİK KAMERA (Taming.io Style)
+        ════════════════════════════════════════════════════════════════ */
+        let _bgSocket = null;
+        const _bgPlayers = new Map();
+        let _bgMobs = [];
+        const _bgBuildings = new Map();
+        let _bgAirdrops = [];
+        let _bgBountyId = null;
+
+        let _camX = 0, _camY = 0;
+        let _targetCamX = 0, _targetCamY = 0;
+        let _trackedTargetId = null;
+        let _targetSwitchTimer = 0;
+
+        const _SCENIC_POIS = [
+            { name: 'Orman Kalbi', x: 0, y: 0 },
+            { name: 'Kavurucu Vaha', x: 1600, y: -1200 },
+            { name: 'Buzlu Şato', x: -1600, y: -1200 },
+            { name: 'Ejder Krateri', x: 0, y: 1800 },
+            { name: 'Kayıp Harabeler', x: 1200, y: 1200 }
+        ];
+        let _currentPoiIdx = 0;
+
+        // Sabit dekoratif dünya nesneleri
+        const _DECORATIVE_OBJECTS = [];
+        for (let i = 0; i < 90; i++) {
+            const angle = (i / 90) * Math.PI * 2;
+            const dist = 300 + (i * 97) % 3200;
+            _DECORATIVE_OBJECTS.push({
+                x: Math.cos(angle) * dist,
+                y: Math.sin(angle) * dist,
+                type: i % 3 === 0 ? 'tree' : (i % 3 === 1 ? 'stone' : 'gold'),
+                size: 28 + (i % 5) * 6
+            });
+        }
+
+        // Ortam parçacıkları
+        const _ambientLeaves = Array.from({ length: 30 }, () => ({
+            x: Math.random() * 2000 - 1000,
+            y: Math.random() * 2000 - 1000,
+            size: 3 + Math.random() * 3,
+            speedX: 0.5 + Math.random() * 0.8,
+            speedY: 0.3 + Math.random() * 0.6,
+            rot: Math.random() * Math.PI * 2
+        }));
+
+        function initSpectatorSocket() {
+            try {
+                if (typeof io === 'undefined') return;
+                const socketUrl = (window.location.protocol === 'https:' ? 'https://' : 'http://') + window.location.host;
+                _bgSocket = io(socketUrl, {
+                    path: '/api/socket.io',
+                    transports: ['websocket', 'polling'],
+                    reconnection: true,
+                    reconnectionDelay: 2500
+                });
+
+                _bgSocket.on('connect', () => {
+                    _bgSocket.emit('spectate');
+                });
+
+                _bgSocket.on('welcome', (data) => {
+                    if (!data) return;
+                    _bgPlayers.clear();
+                    if (data.players) {
+                        Object.entries(data.players).forEach(([pid, p]) => {
+                            _bgPlayers.set(pid, {
+                                id: pid,
+                                name: p.n || p.name || 'Oyuncu',
+                                skin: p.sk || p.skin || 'default',
+                                weapon: p.w || p.weapon || 1,
+                                hp: p.hp ?? 250,
+                                maxHp: p.mhp ?? p.maxHp ?? 250,
+                                x: p.x || 0,
+                                y: p.y || 0,
+                                angle: p.a ?? p.angle ?? 0,
+                                isAttacking: p.atk ?? p.isAttacking ?? false,
+                                rankId: p.rk ?? p.rankId ?? 0
+                            });
+                        });
+                    }
+                    if (data.buildings) {
+                        _bgBuildings.clear();
+                        Object.entries(data.buildings).forEach(([bid, b]) => {
+                            _bgBuildings.set(bid, { ...b, id: bid });
+                        });
+                    }
+                    if (data.mobs && Array.isArray(data.mobs)) {
+                        _bgMobs = data.mobs.map(m => ({
+                            id: m.id,
+                            x: m.x,
+                            y: m.y,
+                            hp: m.hp,
+                            maxHp: m.maxHp || m.hp,
+                            shape: m.shape || 'wolf',
+                            color: m.color || '#6b4932',
+                            typeName: m.typeName || 'Kurt',
+                            radius: m.radius || 48,
+                            angle: 0
+                        }));
+                    }
+                    if (data.airdrops && Array.isArray(data.airdrops)) {
+                        _bgAirdrops = data.airdrops;
+                    }
+                    if (data.bountyId) _bgBountyId = data.bountyId;
+                });
+
+                _bgSocket.on('players', (plist) => {
+                    if (!plist) return;
+                    Object.entries(plist).forEach(([pid, p]) => {
+                        let existing = _bgPlayers.get(pid);
+                        if (!existing) {
+                            existing = { id: pid, name: p.n || 'Oyuncu', skin: p.sk || 'default', weapon: p.w || 1, hp: p.hp || 250, maxHp: p.mhp || 250, x: p.x || 0, y: p.y || 0, angle: p.a || 0, isAttacking: false };
+                            _bgPlayers.set(pid, existing);
+                        } else {
+                            if (p.x !== undefined) existing.x = p.x;
+                            if (p.y !== undefined) existing.y = p.y;
+                            if (p.a !== undefined) existing.angle = p.a;
+                            if (p.hp !== undefined) existing.hp = p.hp;
+                            if (p.atk !== undefined) existing.isAttacking = p.atk;
+                            if (p.n) existing.name = p.n;
+                            if (p.sk) existing.skin = p.sk;
+                            if (p.w) existing.weapon = p.w;
+                        }
+                    });
+                });
+
+                _bgSocket.on('player_dead', ({ id }) => {
+                    _bgPlayers.delete(id);
+                    if (_trackedTargetId === id) { _trackedTargetId = null; _targetSwitchTimer = 0; }
+                });
+
+                _bgSocket.on('player_left', ({ id }) => {
+                    _bgPlayers.delete(id);
+                    if (_trackedTargetId === id) { _trackedTargetId = null; _targetSwitchTimer = 0; }
+                });
+
+                _bgSocket.on('mob_states', (mobsData) => {
+                    if (!Array.isArray(mobsData)) return;
+                    _bgMobs = mobsData.map(m => ({
+                        id: m.id,
+                        x: m.x,
+                        y: m.y,
+                        hp: m.hp,
+                        maxHp: m.maxHp || m.hp,
+                        shape: m.shape || 'wolf',
+                        color: m.color || '#6b4932',
+                        typeName: m.typeName || 'Kurt',
+                        radius: m.radius || 48,
+                        angle: m.angle || 0
+                    }));
+                });
+
+                _bgSocket.on('build', ({ id, building }) => {
+                    if (building) _bgBuildings.set(id, { ...building, id });
+                });
+
+                _bgSocket.on('build_destroy', ({ id }) => {
+                    _bgBuildings.delete(id);
+                });
+
+                _bgSocket.on('bounty_update', ({ id }) => {
+                    _bgBountyId = id || null;
+                });
+
+                _bgSocket.on('airdrop_spawn', (ad) => {
+                    if (ad && !_bgAirdrops.some(a => a.id === ad.id)) _bgAirdrops.push(ad);
+                });
+
+                _bgSocket.on('airdrop_opened', ({ id }) => {
+                    _bgAirdrops = _bgAirdrops.filter(a => a.id !== id);
+                });
+            } catch (e) {
+                console.warn('Lobby background socket error:', e);
+            }
+        }
+
+        function updateSpectatorCamera() {
+            _targetSwitchTimer--;
+            
+            // 1. Canlı Oyuncu Varsa Takip Et
+            const livePlayers = Array.from(_bgPlayers.values()).filter(p => (p.hp ?? 0) > 0);
+            if (livePlayers.length > 0) {
+                let target = livePlayers.find(p => p.id === _trackedTargetId);
+                if (!target || _targetSwitchTimer <= 0) {
+                    const randIdx = Math.floor(Math.random() * livePlayers.length);
+                    target = livePlayers[randIdx];
+                    _trackedTargetId = target.id;
+                    _targetSwitchTimer = 650 + Math.floor(Math.random() * 300); // 10-15s
+                }
+                if (target) {
+                    _targetCamX = target.x;
+                    _targetCamY = target.y;
+                }
+            } 
+            // 2. Oyuncu Yoksa Canlı Mob Takip Et
+            else if (_bgMobs.length > 0) {
+                let mob = _bgMobs.find(m => m.id === _trackedTargetId);
+                if (!mob || _targetSwitchTimer <= 0) {
+                    const randIdx = Math.floor(Math.random() * _bgMobs.length);
+                    mob = _bgMobs[randIdx];
+                    _trackedTargetId = mob.id;
+                    _targetSwitchTimer = 450 + Math.floor(Math.random() * 250);
+                }
+                if (mob) {
+                    _targetCamX = mob.x;
+                    _targetCamY = mob.y;
+                }
+            } 
+            // 3. Biyomlar Arasında Sinematik Gez
+            else {
+                if (_targetSwitchTimer <= 0) {
+                    _currentPoiIdx = (_currentPoiIdx + 1) % _SCENIC_POIS.length;
+                    _targetCamX = _SCENIC_POIS[_currentPoiIdx].x;
+                    _targetCamY = _SCENIC_POIS[_currentPoiIdx].y;
+                    _targetSwitchTimer = 500;
+                }
+            }
+
+            _camX += (_targetCamX - _camX) * 0.045;
+            _camY += (_targetCamY - _camY) * 0.045;
+        }
+
+        function renderLiveGameBackground(ctx) {
+            updateSpectatorCamera();
+
+            ctx.save();
+            ctx.translate(bgW / 2, bgH / 2);
+
+            // Biyom Taban Rengi
+            const biomeGrd = ctx.createLinearGradient(-bgW, -bgH, bgW, bgH);
+            biomeGrd.addColorStop(0, '#2D431D');
+            biomeGrd.addColorStop(0.5, '#354E22');
+            biomeGrd.addColorStop(1, '#253818');
+            ctx.fillStyle = biomeGrd;
+            ctx.fillRect(-bgW / 2, -bgH / 2, bgW, bgH);
+
+            // Izgara Deseni (Dünya koordinatlarına bağlı kayma)
+            const gridSize = 120;
+            const offX = ((-_camX) % gridSize);
+            const offY = ((-_camY) % gridSize);
+            ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (let x = -bgW / 2 + offX - gridSize; x <= bgW / 2 + gridSize; x += gridSize) {
+                ctx.moveTo(x, -bgH / 2);
+                ctx.lineTo(x, bgH / 2);
+            }
+            for (let y = -bgH / 2 + offY - gridSize; y <= bgH / 2 + gridSize; y += gridSize) {
+                ctx.moveTo(-bgW / 2, y);
+                ctx.lineTo(bgW / 2, y);
+            }
+            ctx.stroke();
+
+            // 1. Dekoratif Ağaçlar, Taşlar ve Altın Kayaları
+            _DECORATIVE_OBJECTS.forEach(obj => {
+                const sx = obj.x - _camX, sy = obj.y - _camY;
+                if (Math.abs(sx) > bgW / 2 + 100 || Math.abs(sy) > bgH / 2 + 100) return;
+
+                ctx.save();
+                ctx.translate(sx, sy);
+                if (obj.type === 'tree') {
+                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                    ctx.beginPath(); ctx.ellipse(0, 8, obj.size + 4, obj.size * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#2b661d';
+                    ctx.strokeStyle = '#14380c'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(0, 0, obj.size, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    ctx.fillStyle = '#3a8a27';
+                    ctx.beginPath(); ctx.arc(-obj.size * 0.3, -obj.size * 0.3, obj.size * 0.45, 0, Math.PI * 2); ctx.fill();
+                } else if (obj.type === 'stone') {
+                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                    ctx.beginPath(); ctx.ellipse(0, 6, obj.size, obj.size * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#7a858e';
+                    ctx.strokeStyle = '#3e4449'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(0, 0, obj.size * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                } else {
+                    ctx.fillStyle = '#e6b800';
+                    ctx.strokeStyle = '#806600'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(0, 0, obj.size * 0.75, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                }
+                ctx.restore();
+            });
+
+            // 2. Canlı Binalar (Duvar, Değirmen, Kazık)
+            _bgBuildings.forEach(b => {
+                const bx = b.x - _camX, by = b.y - _camY;
+                if (Math.abs(bx) > bgW / 2 + 120 || Math.abs(by) > bgH / 2 + 120) return;
+
+                ctx.save();
+                ctx.translate(bx, by);
+                // Değirmen
+                if (b.type === 4) {
+                    ctx.fillStyle = '#a07855';
+                    ctx.strokeStyle = '#4a2f1b'; ctx.lineWidth = 3.5;
+                    ctx.beginPath(); ctx.arc(0, 0, 32, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    // Dönen Pervane
+                    ctx.save();
+                    ctx.rotate(_animFrame * 0.04);
+                    ctx.fillStyle = '#ffd700';
+                    for (let i = 0; i < 4; i++) {
+                        ctx.rotate(Math.PI / 2);
+                        ctx.fillRect(-4, 0, 8, 48);
+                    }
+                    ctx.restore();
+                } 
+                // Duvar
+                else if (b.type === 8) {
+                    ctx.fillStyle = '#8c9398';
+                    ctx.strokeStyle = '#3a3f44'; ctx.lineWidth = 3.5;
+                    ctx.beginPath(); ctx.roundRect(-22, -22, 44, 44, 8); ctx.fill(); ctx.stroke();
+                } 
+                // Kazık
+                else if (b.type === 3) {
+                    ctx.fillStyle = '#b33939';
+                    ctx.strokeStyle = '#531b1b'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    for (let i = 0; i < 8; i++) {
+                        const a = (i / 8) * Math.PI * 2;
+                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * 36, Math.sin(a) * 36); ctx.stroke();
+                    }
+                } 
+                // Genel Bina
+                else {
+                    ctx.fillStyle = '#8B5E3A';
+                    ctx.strokeStyle = '#3A1E08'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                }
+                ctx.restore();
+            });
+
+            // 3. Canlı Airdrop Sandıkları
+            _bgAirdrops.forEach(ad => {
+                const ax = ad.x - _camX, ay = ad.y - _camY;
+                if (Math.abs(ax) > bgW / 2 + 150 || Math.abs(ay) > bgH / 2 + 150) return;
+
+                ctx.save();
+                ctx.translate(ax, ay);
+                // Işık Hüzmesi
+                const beamGrd = ctx.createLinearGradient(0, 0, 0, -400);
+                beamGrd.addColorStop(0, ad.tier === 2 ? 'rgba(0,229,255,0.45)' : 'rgba(255,215,0,0.45)');
+                beamGrd.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = beamGrd;
+                ctx.fillRect(-22, -400, 44, 400);
+
+                // Sandık
+                ctx.fillStyle = ad.tier === 2 ? '#00e5ff' : '#ffd700';
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.roundRect(-26, -20, 52, 40, 8); ctx.fill(); ctx.stroke();
+                ctx.fillStyle = '#fff';
+                ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('📦', 0, 0);
+                ctx.restore();
+            });
+
+            // 4. Canlı Moblar (Kurt, Ayı, Akrep, Örümcek)
+            _bgMobs.forEach(m => {
+                const mx = m.x - _camX, my = m.y - _camY;
+                if (Math.abs(mx) > bgW / 2 + 100 || Math.abs(my) > bgH / 2 + 100) return;
+
+                ctx.save();
+                ctx.translate(mx, my);
+                ctx.rotate(m.angle || 0);
+
+                // Ayaklar
+                ctx.fillStyle = m.color || '#6b4932';
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5;
+                for (let i = -1; i <= 1; i += 2) {
+                    const footY = Math.sin(_animFrame * 0.15 + i) * 6;
+                    ctx.beginPath(); ctx.ellipse(-15, i * 22 + footY, 10, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    ctx.beginPath(); ctx.ellipse(15, i * 22 - footY, 10, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                }
+
+                // Gövde
+                ctx.beginPath();
+                ctx.arc(0, 0, m.radius || 36, 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+
+                // Gözler
+                ctx.fillStyle = '#ff2222';
+                ctx.beginPath(); ctx.arc(18, -10, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(18, 10, 4, 0, Math.PI * 2); ctx.fill();
+
+                // Can Barı
+                ctx.rotate(-(m.angle || 0));
+                const hpPct = Math.max(0, Math.min(1, (m.hp || 100) / (m.maxHp || 100)));
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(-24, -m.radius - 14, 48, 6);
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(-23, -m.radius - 13, 46 * hpPct, 4);
+
+                ctx.restore();
+            });
+
+            // 5. Canlı Oyuncular
+            _bgPlayers.forEach(p => {
+                const px = p.x - _camX, py = p.y - _camY;
+                if (Math.abs(px) > bgW / 2 + 100 || Math.abs(py) > bgH / 2 + 100) return;
+
+                ctx.save();
+                ctx.translate(px, py);
+
+                // Karakter Çizimi
+                drawExactInGamePlayer(ctx, 0, 0, p.skin || 'default', p.weapon > 1 ? `ki_tier_${Math.min(4, p.weapon - 1)}` : 'ki_tier_0', _animFrame, 0.55);
+
+                // Altın Kralı Tacı (👑)
+                if (_bgBountyId && _bgBountyId === p.id) {
+                    const crownY = -48 + Math.sin(_animFrame * 0.08) * 4;
+                    ctx.font = '24px serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('👑', 0, crownY);
+                }
+
+                // İsim & Can Barı
+                ctx.font = 'bold 12px Nunito, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 3;
+                ctx.strokeText(p.name || 'Oyuncu', 0, -32);
+                ctx.fillText(p.name || 'Oyuncu', 0, -32);
+
+                const hpPct = Math.max(0, Math.min(1, (p.hp || 250) / (p.maxHp || 250)));
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.fillRect(-22, -22, 44, 5);
+                ctx.fillStyle = '#79D138';
+                ctx.fillRect(-21, -21, 42 * hpPct, 3);
+
+                ctx.restore();
+            });
+
+            // 6. Uçuşan Yapraklar / Ortam Parçacıkları
+            _ambientLeaves.forEach(l => {
+                l.x += l.speedX;
+                l.y += l.speedY;
+                l.rot += 0.02;
+                if (l.x > bgW / 2 + 100) l.x = -bgW / 2 - 100;
+                if (l.y > bgH / 2 + 100) l.y = -bgH / 2 - 100;
+
+                ctx.save();
+                ctx.translate(l.x, l.y);
+                ctx.rotate(l.rot);
+                ctx.fillStyle = 'rgba(180, 240, 70, 0.45)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, l.size * 1.8, l.size, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            ctx.restore();
+
+            // 7. SİNEMATİK KARARTMA & VIGNETTE KATMANI (UI Menülerinin Parlaması İçin)
+            const radGrd = ctx.createRadialGradient(bgW / 2, bgH / 2, Math.min(bgW, bgH) * 0.22, bgW / 2, bgH / 2, Math.max(bgW, bgH) * 0.85);
+            radGrd.addColorStop(0, 'rgba(8, 14, 6, 0.38)');
+            radGrd.addColorStop(0.7, 'rgba(5, 10, 4, 0.65)');
+            radGrd.addColorStop(1, 'rgba(2, 6, 2, 0.88)');
+            ctx.fillStyle = radGrd;
+            ctx.fillRect(0, 0, bgW, bgH);
+        }
+
         function animateMenu() {
             _animFrame++;
             
-            // Arka Plan
+            // Canlı Oyun Dünyası ve Sinematik Kamera
             if (bgCtx) {
-                const grd = bgCtx.createRadialGradient(bgW / 2, bgH / 2, 50, bgW / 2, bgH / 2, Math.max(bgW, bgH) * 0.85);
-                grd.addColorStop(0, '#364F24');
-                grd.addColorStop(1, '#1A2810');
-                bgCtx.fillStyle = grd;
-                bgCtx.fillRect(0, 0, bgW, bgH);
-
-                bgParticles.forEach(p => {
-                    p.y -= p.speedY;
-                    p.x += p.speedX;
-                    if (p.y < 0) p.y = bgH;
-                    if (p.x < 0) p.x = bgW;
-                    if (p.x > bgW) p.x = 0;
-
-                    bgCtx.fillStyle = `rgba(180, 240, 70, ${p.alpha * (0.6 + Math.sin(_animFrame * 0.04 + p.x) * 0.4)})`;
-                    bgCtx.beginPath();
-                    bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                    bgCtx.fill();
-                });
+                renderLiveGameBackground(bgCtx);
             }
 
-            // 1. Ana Ekran Aktif Karakter Canvası (Sağa Bakan, Oyun İçiyle Birebir)
+            // 1. Ana Ekran Aktif Karakter Canvası
             const apc = document.getElementById('active-pet-canvas');
             if (apc) {
                 const actx = apc.getContext('2d');
@@ -2280,7 +2845,7 @@
                 drawExactInGamePlayer(actx, 36, 54, _currentSkin, _equippedWeapon, _animFrame, 0.42);
             }
 
-            // 2. Cosmetics (Envanter) Önizleme Canvası (Sağa Bakan)
+            // 2. Cosmetics (Envanter) Önizleme Canvası
             const cpc = document.getElementById('cosmetic-preview-canvas');
             if (cpc) {
                 const cctx = cpc.getContext('2d');
@@ -2290,7 +2855,7 @@
                 drawExactInGamePlayer(cctx, 85, 125, prevSkin, prevWep, _animFrame, 0.72);
             }
 
-            // 3. Shop (Mağaza) Önizleme Canvası (Sağa Bakan)
+            // 3. Shop (Mağaza) Önizleme Canvası
             const spc = document.getElementById('shop-preview-canvas');
             if (spc) {
                 const sctx = spc.getContext('2d');
@@ -2304,13 +2869,14 @@
         }
 
         /* ════════════════════════════════════════════════════════════════
-           13. BAŞLANGIÇ YÜKLEMESİ
+           14. BAŞLANGIÇ YÜKLEMESİ
         ════════════════════════════════════════════════════════════════ */
         window.addEventListener('DOMContentLoaded', () => {
             resizeBackground();
             loadSavedSettings();
             updateAudioUI();
             updateChallengeProgress();
+            initSpectatorSocket();
             
             const savedName = localStorage.getItem('fb_name');
             if (savedName) document.getElementById('name-input').value = savedName;

@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-9KY2XEKMWK"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9KY2KCMVMK"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', 'G-9KY2XEKMWK');
+  gtag('config', 'G-9KY2KCMVMK');
 </script>
 <meta name="google-site-verification" content="5HPW5h_jP5UFmpzrVQDBf94viuUajdObUgtm0JNoi5g">
 <meta name="google-site-verification" content="google36f814981b2cabaa">
@@ -3865,6 +3865,12 @@ let _mobIdArr = [];
 let loots = [];          // gold/item drops on ground
 let chests = [];         // treasure chests
 let airdropsList = [];   // server-synced loot airdrops & boss chests
+let _sessionQuestStats = { wolves: 0, bears: 0, scorpions: 0, spiders: 0, kills: 0, kingKills: 0, airdrops: 0, buildings: 0, wood: 0, stone: 0, gold: 0 };
+function _incQuestStat(k, n = 1) {
+  if (k && _sessionQuestStats) {
+    _sessionQuestStats[k] = (_sessionQuestStats[k] || 0) + n;
+  }
+}
 const CHEST_COLLECT_RADIUS = 46;
 const MAX_CHESTS = 3;
 let _nextChestSpawn = 2400 + Math.random() * 1200; // first chest ~40-60s
@@ -5542,6 +5548,7 @@ function tryPlaceBuilding() {
     _sgRebuildTimer = 8; // force spatial grid rebuild next frame on new building
     _trackMission('m3', 1);
     window._updateQuestProgress('builds', 1);
+    _incQuestStat('buildings', 1);
     _queueBuildMetaUpdate(1);
     _mpBuildPlaced(newB, radii[player.weapon] || 34);
     updateUI();
@@ -7837,7 +7844,19 @@ function die() {
       score,
       timePlayed: _dieTimePlayed,
       coins: player.gold,
-      gold: player.gold
+      gold: player.gold,
+      questProgress: {
+        wolves: _sessionQuestStats.wolves || 0,
+        bears: _sessionQuestStats.bears || 0,
+        scorpions: _sessionQuestStats.scorpions || 0,
+        spiders: _sessionQuestStats.spiders || 0,
+        kills: player.kills || 0,
+        kingKills: _sessionQuestStats.kingKills || 0,
+        airdrops: _sessionQuestStats.airdrops || 0,
+        buildings: _sessionQuestStats.buildings || 0,
+        wood: _sessionQuestStats.wood || 0,
+        gold: player.gold || 0
+      }
     }),
   }).then(r => {
     if (r.status === 401) {
@@ -14324,6 +14343,8 @@ function initMultiplayer() {
 
   // We killed the bounty target — extra reward
   _socket.on('bounty_kill_reward', ({ name, bonus }) => {
+    _incQuestStat('kingKills', 1);
+    _incQuestStat('kills', 1);
     player.score = (player.score || 0) + (bonus || 300);
     player.gold += (bonus || 300);
     updateUI();
@@ -14370,6 +14391,9 @@ function initMultiplayer() {
   _socket.on('airdrop_opened', ({ id, x, y, openerName, openerId, gold, tier }) => {
     const idx = airdropsList.findIndex(a => a.id === id);
     if (idx !== -1) airdropsList.splice(idx, 1);
+    if (openerId === _mySocketId) {
+      _incQuestStat('airdrops', 1);
+    }
     spawnGoldBurst(x, y);
     spawnGoldBurst(x, y);
     floatingTexts.push({ x, y: y - 40, text: `🎉 +${gold} 🪙 SANDIK AÇILDI!`, alpha: 1, life: 75, color: '#ffd700', big: true });
@@ -14926,6 +14950,10 @@ function initMultiplayer() {
       const e = enemies[idx];
       spawnBlood(e.x, e.y, 4); // was 12 — fewer particles = less CPU spike on rapid kills
       spawnGoldBurst(e.x, e.y);
+      if (e.shape === 'wolf') _incQuestStat('wolves', 1);
+      else if (e.shape === 'bear') _incQuestStat('bears', 1);
+      else if (e.shape === 'scorpion') _incQuestStat('scorpions', 1);
+      else if (e.shape === 'spider') _incQuestStat('spiders', 1);
       enemies.splice(idx, 1);
     }
     // Boss bar: hide if the boss was killed
