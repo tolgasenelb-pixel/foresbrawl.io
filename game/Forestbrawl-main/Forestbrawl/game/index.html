@@ -200,10 +200,21 @@
         }
 
         .modal-content {
-            width: min(92vw, 420px);
-            max-height: min(86vh, 820px);
-            overflow: auto;
+            width: min(94vw, 440px);
+            max-height: min(90vh, 840px);
+            overflow-y: auto;
             margin: auto;
+        }
+
+        #shopModal.modal-content,
+        #cosmeticsModal.modal-content {
+            width: min(95vw, 840px) !important;
+            max-width: 840px !important;
+        }
+
+        #challengesModal.modal-content {
+            width: min(95vw, 480px) !important;
+            max-width: 480px !important;
         }
 
         /* --- 3D BUTONLAR --- */
@@ -1200,6 +1211,7 @@
         ════════════════════════════════════════════════════════════════ */
         let _authToken = localStorage.getItem('fb_auth_token') || null;
         let _authUser  = JSON.parse(localStorage.getItem('fb_auth_user') || 'null');
+        let _currentUser = _authUser;
         let _currentSkin = localStorage.getItem('fb_skin') || 'wolf';
         let _equippedWeapon = localStorage.getItem('fb_weapon_skin') || 'ki_tier_0';
         
@@ -2292,6 +2304,15 @@
         const bgCtx = bgCanvas ? bgCanvas.getContext('2d') : null;
         let bgW = window.innerWidth, bgH = window.innerHeight;
 
+        const bgParticles = Array.from({ length: 26 }, () => ({
+            x: Math.random() * (window.innerWidth || 1200),
+            y: Math.random() * (window.innerHeight || 800),
+            radius: Math.random() * 3 + 1.5,
+            speedY: Math.random() * 0.45 + 0.2,
+            speedX: (Math.random() - 0.5) * 0.35,
+            alpha: Math.random() * 0.6 + 0.25
+        }));
+
         function resizeBackground() {
             if (!bgCanvas) return;
             bgW = bgCanvas.width = window.innerWidth;
@@ -2299,24 +2320,25 @@
         }
         window.addEventListener('resize', resizeBackground);
 
-        // OYUN İÇİ İLE %100 BİREBİR VE SAĞA BAKAN ÇİZİM MOTORU
+        // OYUN İÇİ İLE %100 BİREBİR VE SAĞA BAKAN CANLI ÇİZİM MOTORU
         function drawExactInGamePlayer(ctx, cx, cy, skinId, weaponId, t, scale = 0.7) {
+            if (!ctx) return;
             const skinImg = getLoadedImage(`players/${skinId}.png`);
             const armCol = SKIN_ARM_COLORS[skinId] || '#c4966a';
             
-            const breathe = Math.sin(t * 0.05) * 1.5;
+            const breathe = Math.sin(t * 0.06) * 1.8;
             
             ctx.save();
             ctx.translate(cx, cy + breathe);
             ctx.scale(scale, scale);
 
             // 1. Zemin Gölgesi
-            ctx.fillStyle = 'rgba(0,0,0,0.32)';
+            ctx.fillStyle = 'rgba(0,0,0,0.35)';
             ctx.beginPath();
-            ctx.ellipse(0, 0, 38, 38, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, 42, 42, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // 2. Silah Resmi
+            // 2. Silah Resmi (Kılıç / Balta)
             let weaponSrc = 'weapons/sword-tier-0.png';
             if (weaponId && weaponId.startsWith('ba_')) {
                 const axeObj = REAL_AXES.find(a => a.id === weaponId);
@@ -2332,11 +2354,11 @@
                 ctx.restore();
             }
 
-            // 3. Eller
+            // 3. Eller (Canlı ve Belirgin)
             for (let _ai = 0; _ai < 2; _ai++) {
-                const ay = _ai === 0 ? -13 : 20, sign = _ai === 0 ? -1 : 1;
+                const ay = _ai === 0 ? -14 : 20, sign = _ai === 0 ? -1 : 1;
                 ctx.save();
-                ctx.translate(30, ay);
+                ctx.translate(32, ay);
                 ctx.fillStyle = armCol;
                 ctx.strokeStyle = '#000000';
                 ctx.lineWidth = 3.2;
@@ -2345,7 +2367,8 @@
                 ctx.fill();
                 ctx.stroke();
 
-                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                // El parlama detayı
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
                 ctx.beginPath();
                 ctx.ellipse(2, -3 * sign, 7, 4, 0.2 * sign, 0, Math.PI * 2);
                 ctx.fill();
@@ -2360,7 +2383,7 @@
                 ctx.strokeStyle = '#000';
                 ctx.lineWidth = 3.5;
                 ctx.beginPath();
-                ctx.arc(0, 0, 35, 0, Math.PI * 2);
+                ctx.arc(0, 0, 36, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
             }
@@ -2368,515 +2391,87 @@
             ctx.restore();
         }
 
-        /* ════════════════════════════════════════════════════════════════
-           13. CANLI ARKA PLAN OYUN MOTORU & SİNEMATİK KAMERA (Taming.io Style)
-        ════════════════════════════════════════════════════════════════ */
-        let _bgSocket = null;
-        const _bgPlayers = new Map();
-        let _bgMobs = [];
-        const _bgBuildings = new Map();
-        let _bgAirdrops = [];
-        let _bgBountyId = null;
-
-        let _camX = 0, _camY = 0;
-        let _targetCamX = 0, _targetCamY = 0;
-        let _trackedTargetId = null;
-        let _targetSwitchTimer = 0;
-
-        const _SCENIC_POIS = [
-            { name: 'Orman Kalbi', x: 0, y: 0 },
-            { name: 'Kavurucu Vaha', x: 1600, y: -1200 },
-            { name: 'Buzlu Şato', x: -1600, y: -1200 },
-            { name: 'Ejder Krateri', x: 0, y: 1800 },
-            { name: 'Kayıp Harabeler', x: 1200, y: 1200 }
-        ];
-        let _currentPoiIdx = 0;
-
-        // Sabit dekoratif dünya nesneleri
-        const _DECORATIVE_OBJECTS = [];
-        for (let i = 0; i < 90; i++) {
-            const angle = (i / 90) * Math.PI * 2;
-            const dist = 300 + (i * 97) % 3200;
-            _DECORATIVE_OBJECTS.push({
-                x: Math.cos(angle) * dist,
-                y: Math.sin(angle) * dist,
-                type: i % 3 === 0 ? 'tree' : (i % 3 === 1 ? 'stone' : 'gold'),
-                size: 28 + (i % 5) * 6
-            });
-        }
-
-        // Ortam parçacıkları
-        const _ambientLeaves = Array.from({ length: 30 }, () => ({
-            x: Math.random() * 2000 - 1000,
-            y: Math.random() * 2000 - 1000,
-            size: 3 + Math.random() * 3,
-            speedX: 0.5 + Math.random() * 0.8,
-            speedY: 0.3 + Math.random() * 0.6,
-            rot: Math.random() * Math.PI * 2
-        }));
-
-        function initSpectatorSocket() {
-            try {
-                if (typeof io === 'undefined') return;
-                const socketUrl = (window.location.protocol === 'https:' ? 'https://' : 'http://') + window.location.host;
-                _bgSocket = io(socketUrl, {
-                    path: '/api/socket.io',
-                    transports: ['websocket', 'polling'],
-                    reconnection: true,
-                    reconnectionDelay: 2500
-                });
-
-                _bgSocket.on('connect', () => {
-                    _bgSocket.emit('spectate');
-                });
-
-                _bgSocket.on('welcome', (data) => {
-                    if (!data) return;
-                    _bgPlayers.clear();
-                    if (data.players) {
-                        Object.entries(data.players).forEach(([pid, p]) => {
-                            _bgPlayers.set(pid, {
-                                id: pid,
-                                name: p.n || p.name || 'Oyuncu',
-                                skin: p.sk || p.skin || 'default',
-                                weapon: p.w || p.weapon || 1,
-                                hp: p.hp ?? 250,
-                                maxHp: p.mhp ?? p.maxHp ?? 250,
-                                x: p.x || 0,
-                                y: p.y || 0,
-                                angle: p.a ?? p.angle ?? 0,
-                                isAttacking: p.atk ?? p.isAttacking ?? false,
-                                rankId: p.rk ?? p.rankId ?? 0
-                            });
-                        });
-                    }
-                    if (data.buildings) {
-                        _bgBuildings.clear();
-                        Object.entries(data.buildings).forEach(([bid, b]) => {
-                            _bgBuildings.set(bid, { ...b, id: bid });
-                        });
-                    }
-                    if (data.mobs && Array.isArray(data.mobs)) {
-                        _bgMobs = data.mobs.map(m => ({
-                            id: m.id,
-                            x: m.x,
-                            y: m.y,
-                            hp: m.hp,
-                            maxHp: m.maxHp || m.hp,
-                            shape: m.shape || 'wolf',
-                            color: m.color || '#6b4932',
-                            typeName: m.typeName || 'Kurt',
-                            radius: m.radius || 48,
-                            angle: 0
-                        }));
-                    }
-                    if (data.airdrops && Array.isArray(data.airdrops)) {
-                        _bgAirdrops = data.airdrops;
-                    }
-                    if (data.bountyId) _bgBountyId = data.bountyId;
-                });
-
-                _bgSocket.on('players', (plist) => {
-                    if (!plist) return;
-                    Object.entries(plist).forEach(([pid, p]) => {
-                        let existing = _bgPlayers.get(pid);
-                        if (!existing) {
-                            existing = { id: pid, name: p.n || 'Oyuncu', skin: p.sk || 'default', weapon: p.w || 1, hp: p.hp || 250, maxHp: p.mhp || 250, x: p.x || 0, y: p.y || 0, angle: p.a || 0, isAttacking: false };
-                            _bgPlayers.set(pid, existing);
-                        } else {
-                            if (p.x !== undefined) existing.x = p.x;
-                            if (p.y !== undefined) existing.y = p.y;
-                            if (p.a !== undefined) existing.angle = p.a;
-                            if (p.hp !== undefined) existing.hp = p.hp;
-                            if (p.atk !== undefined) existing.isAttacking = p.atk;
-                            if (p.n) existing.name = p.n;
-                            if (p.sk) existing.skin = p.sk;
-                            if (p.w) existing.weapon = p.w;
-                        }
-                    });
-                });
-
-                _bgSocket.on('player_dead', ({ id }) => {
-                    _bgPlayers.delete(id);
-                    if (_trackedTargetId === id) { _trackedTargetId = null; _targetSwitchTimer = 0; }
-                });
-
-                _bgSocket.on('player_left', ({ id }) => {
-                    _bgPlayers.delete(id);
-                    if (_trackedTargetId === id) { _trackedTargetId = null; _targetSwitchTimer = 0; }
-                });
-
-                _bgSocket.on('mob_states', (mobsData) => {
-                    if (!Array.isArray(mobsData)) return;
-                    _bgMobs = mobsData.map(m => ({
-                        id: m.id,
-                        x: m.x,
-                        y: m.y,
-                        hp: m.hp,
-                        maxHp: m.maxHp || m.hp,
-                        shape: m.shape || 'wolf',
-                        color: m.color || '#6b4932',
-                        typeName: m.typeName || 'Kurt',
-                        radius: m.radius || 48,
-                        angle: m.angle || 0
-                    }));
-                });
-
-                _bgSocket.on('build', ({ id, building }) => {
-                    if (building) _bgBuildings.set(id, { ...building, id });
-                });
-
-                _bgSocket.on('build_destroy', ({ id }) => {
-                    _bgBuildings.delete(id);
-                });
-
-                _bgSocket.on('bounty_update', ({ id }) => {
-                    _bgBountyId = id || null;
-                });
-
-                _bgSocket.on('airdrop_spawn', (ad) => {
-                    if (ad && !_bgAirdrops.some(a => a.id === ad.id)) _bgAirdrops.push(ad);
-                });
-
-                _bgSocket.on('airdrop_opened', ({ id }) => {
-                    _bgAirdrops = _bgAirdrops.filter(a => a.id !== id);
-                });
-            } catch (e) {
-                console.warn('Lobby background socket error:', e);
-            }
-        }
-
-        function updateSpectatorCamera() {
-            _targetSwitchTimer--;
-            
-            // 1. Canlı Oyuncu Varsa Takip Et
-            const livePlayers = Array.from(_bgPlayers.values()).filter(p => (p.hp ?? 0) > 0);
-            if (livePlayers.length > 0) {
-                let target = livePlayers.find(p => p.id === _trackedTargetId);
-                if (!target || _targetSwitchTimer <= 0) {
-                    const randIdx = Math.floor(Math.random() * livePlayers.length);
-                    target = livePlayers[randIdx];
-                    _trackedTargetId = target.id;
-                    _targetSwitchTimer = 650 + Math.floor(Math.random() * 300); // 10-15s
-                }
-                if (target) {
-                    _targetCamX = target.x;
-                    _targetCamY = target.y;
-                }
-            } 
-            // 2. Oyuncu Yoksa Canlı Mob Takip Et
-            else if (_bgMobs.length > 0) {
-                let mob = _bgMobs.find(m => m.id === _trackedTargetId);
-                if (!mob || _targetSwitchTimer <= 0) {
-                    const randIdx = Math.floor(Math.random() * _bgMobs.length);
-                    mob = _bgMobs[randIdx];
-                    _trackedTargetId = mob.id;
-                    _targetSwitchTimer = 450 + Math.floor(Math.random() * 250);
-                }
-                if (mob) {
-                    _targetCamX = mob.x;
-                    _targetCamY = mob.y;
-                }
-            } 
-            // 3. Biyomlar Arasında Sinematik Gez
-            else {
-                if (_targetSwitchTimer <= 0) {
-                    _currentPoiIdx = (_currentPoiIdx + 1) % _SCENIC_POIS.length;
-                    _targetCamX = _SCENIC_POIS[_currentPoiIdx].x;
-                    _targetCamY = _SCENIC_POIS[_currentPoiIdx].y;
-                    _targetSwitchTimer = 500;
-                }
-            }
-
-            _camX += (_targetCamX - _camX) * 0.045;
-            _camY += (_targetCamY - _camY) * 0.045;
-        }
-
-        function renderLiveGameBackground(ctx) {
-            updateSpectatorCamera();
-
-            ctx.save();
-            ctx.translate(bgW / 2, bgH / 2);
-
-            // Biyom Taban Rengi
-            const biomeGrd = ctx.createLinearGradient(-bgW, -bgH, bgW, bgH);
-            biomeGrd.addColorStop(0, '#2D431D');
-            biomeGrd.addColorStop(0.5, '#354E22');
-            biomeGrd.addColorStop(1, '#253818');
-            ctx.fillStyle = biomeGrd;
-            ctx.fillRect(-bgW / 2, -bgH / 2, bgW, bgH);
-
-            // Izgara Deseni (Dünya koordinatlarına bağlı kayma)
-            const gridSize = 120;
-            const offX = ((-_camX) % gridSize);
-            const offY = ((-_camY) % gridSize);
-            ctx.strokeStyle = 'rgba(255,255,255,0.035)';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            for (let x = -bgW / 2 + offX - gridSize; x <= bgW / 2 + gridSize; x += gridSize) {
-                ctx.moveTo(x, -bgH / 2);
-                ctx.lineTo(x, bgH / 2);
-            }
-            for (let y = -bgH / 2 + offY - gridSize; y <= bgH / 2 + gridSize; y += gridSize) {
-                ctx.moveTo(-bgW / 2, y);
-                ctx.lineTo(bgW / 2, y);
-            }
-            ctx.stroke();
-
-            // 1. Dekoratif Ağaçlar, Taşlar ve Altın Kayaları
-            _DECORATIVE_OBJECTS.forEach(obj => {
-                const sx = obj.x - _camX, sy = obj.y - _camY;
-                if (Math.abs(sx) > bgW / 2 + 100 || Math.abs(sy) > bgH / 2 + 100) return;
-
-                ctx.save();
-                ctx.translate(sx, sy);
-                if (obj.type === 'tree') {
-                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                    ctx.beginPath(); ctx.ellipse(0, 8, obj.size + 4, obj.size * 0.7, 0, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#2b661d';
-                    ctx.strokeStyle = '#14380c'; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.arc(0, 0, obj.size, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                    ctx.fillStyle = '#3a8a27';
-                    ctx.beginPath(); ctx.arc(-obj.size * 0.3, -obj.size * 0.3, obj.size * 0.45, 0, Math.PI * 2); ctx.fill();
-                } else if (obj.type === 'stone') {
-                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                    ctx.beginPath(); ctx.ellipse(0, 6, obj.size, obj.size * 0.6, 0, 0, Math.PI * 2); ctx.fill();
-                    ctx.fillStyle = '#7a858e';
-                    ctx.strokeStyle = '#3e4449'; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.arc(0, 0, obj.size * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                } else {
-                    ctx.fillStyle = '#e6b800';
-                    ctx.strokeStyle = '#806600'; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.arc(0, 0, obj.size * 0.75, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                }
-                ctx.restore();
-            });
-
-            // 2. Canlı Binalar (Duvar, Değirmen, Kazık)
-            _bgBuildings.forEach(b => {
-                const bx = b.x - _camX, by = b.y - _camY;
-                if (Math.abs(bx) > bgW / 2 + 120 || Math.abs(by) > bgH / 2 + 120) return;
-
-                ctx.save();
-                ctx.translate(bx, by);
-                // Değirmen
-                if (b.type === 4) {
-                    ctx.fillStyle = '#a07855';
-                    ctx.strokeStyle = '#4a2f1b'; ctx.lineWidth = 3.5;
-                    ctx.beginPath(); ctx.arc(0, 0, 32, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                    // Dönen Pervane
-                    ctx.save();
-                    ctx.rotate(_animFrame * 0.04);
-                    ctx.fillStyle = '#ffd700';
-                    for (let i = 0; i < 4; i++) {
-                        ctx.rotate(Math.PI / 2);
-                        ctx.fillRect(-4, 0, 8, 48);
-                    }
-                    ctx.restore();
-                } 
-                // Duvar
-                else if (b.type === 8) {
-                    ctx.fillStyle = '#8c9398';
-                    ctx.strokeStyle = '#3a3f44'; ctx.lineWidth = 3.5;
-                    ctx.beginPath(); ctx.roundRect(-22, -22, 44, 44, 8); ctx.fill(); ctx.stroke();
-                } 
-                // Kazık
-                else if (b.type === 3) {
-                    ctx.fillStyle = '#b33939';
-                    ctx.strokeStyle = '#531b1b'; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                    for (let i = 0; i < 8; i++) {
-                        const a = (i / 8) * Math.PI * 2;
-                        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * 36, Math.sin(a) * 36); ctx.stroke();
-                    }
-                } 
-                // Genel Bina
-                else {
-                    ctx.fillStyle = '#8B5E3A';
-                    ctx.strokeStyle = '#3A1E08'; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                }
-                ctx.restore();
-            });
-
-            // 3. Canlı Airdrop Sandıkları
-            _bgAirdrops.forEach(ad => {
-                const ax = ad.x - _camX, ay = ad.y - _camY;
-                if (Math.abs(ax) > bgW / 2 + 150 || Math.abs(ay) > bgH / 2 + 150) return;
-
-                ctx.save();
-                ctx.translate(ax, ay);
-                // Işık Hüzmesi
-                const beamGrd = ctx.createLinearGradient(0, 0, 0, -400);
-                beamGrd.addColorStop(0, ad.tier === 2 ? 'rgba(0,229,255,0.45)' : 'rgba(255,215,0,0.45)');
-                beamGrd.addColorStop(1, 'rgba(255,255,255,0)');
-                ctx.fillStyle = beamGrd;
-                ctx.fillRect(-22, -400, 44, 400);
-
-                // Sandık
-                ctx.fillStyle = ad.tier === 2 ? '#00e5ff' : '#ffd700';
-                ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.roundRect(-26, -20, 52, 40, 8); ctx.fill(); ctx.stroke();
-                ctx.fillStyle = '#fff';
-                ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText('📦', 0, 0);
-                ctx.restore();
-            });
-
-            // 4. Canlı Moblar (Kurt, Ayı, Akrep, Örümcek)
-            _bgMobs.forEach(m => {
-                const mx = m.x - _camX, my = m.y - _camY;
-                if (Math.abs(mx) > bgW / 2 + 100 || Math.abs(my) > bgH / 2 + 100) return;
-
-                ctx.save();
-                ctx.translate(mx, my);
-                ctx.rotate(m.angle || 0);
-
-                // Ayaklar
-                ctx.fillStyle = m.color || '#6b4932';
-                ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5;
-                for (let i = -1; i <= 1; i += 2) {
-                    const footY = Math.sin(_animFrame * 0.15 + i) * 6;
-                    ctx.beginPath(); ctx.ellipse(-15, i * 22 + footY, 10, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                    ctx.beginPath(); ctx.ellipse(15, i * 22 - footY, 10, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-                }
-
-                // Gövde
-                ctx.beginPath();
-                ctx.arc(0, 0, m.radius || 36, 0, Math.PI * 2);
-                ctx.fill(); ctx.stroke();
-
-                // Gözler
-                ctx.fillStyle = '#ff2222';
-                ctx.beginPath(); ctx.arc(18, -10, 4, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(18, 10, 4, 0, Math.PI * 2); ctx.fill();
-
-                // Can Barı
-                ctx.rotate(-(m.angle || 0));
-                const hpPct = Math.max(0, Math.min(1, (m.hp || 100) / (m.maxHp || 100)));
-                ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                ctx.fillRect(-24, -m.radius - 14, 48, 6);
-                ctx.fillStyle = '#ff4444';
-                ctx.fillRect(-23, -m.radius - 13, 46 * hpPct, 4);
-
-                ctx.restore();
-            });
-
-            // 5. Canlı Oyuncular
-            _bgPlayers.forEach(p => {
-                const px = p.x - _camX, py = p.y - _camY;
-                if (Math.abs(px) > bgW / 2 + 100 || Math.abs(py) > bgH / 2 + 100) return;
-
-                ctx.save();
-                ctx.translate(px, py);
-
-                // Karakter Çizimi
-                drawExactInGamePlayer(ctx, 0, 0, p.skin || 'default', p.weapon > 1 ? `ki_tier_${Math.min(4, p.weapon - 1)}` : 'ki_tier_0', _animFrame, 0.55);
-
-                // Altın Kralı Tacı (👑)
-                if (_bgBountyId && _bgBountyId === p.id) {
-                    const crownY = -48 + Math.sin(_animFrame * 0.08) * 4;
-                    ctx.font = '24px serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('👑', 0, crownY);
-                }
-
-                // İsim & Can Barı
-                ctx.font = 'bold 12px Nunito, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#ffffff';
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 3;
-                ctx.strokeText(p.name || 'Oyuncu', 0, -32);
-                ctx.fillText(p.name || 'Oyuncu', 0, -32);
-
-                const hpPct = Math.max(0, Math.min(1, (p.hp || 250) / (p.maxHp || 250)));
-                ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                ctx.fillRect(-22, -22, 44, 5);
-                ctx.fillStyle = '#79D138';
-                ctx.fillRect(-21, -21, 42 * hpPct, 3);
-
-                ctx.restore();
-            });
-
-            // 6. Uçuşan Yapraklar / Ortam Parçacıkları
-            _ambientLeaves.forEach(l => {
-                l.x += l.speedX;
-                l.y += l.speedY;
-                l.rot += 0.02;
-                if (l.x > bgW / 2 + 100) l.x = -bgW / 2 - 100;
-                if (l.y > bgH / 2 + 100) l.y = -bgH / 2 - 100;
-
-                ctx.save();
-                ctx.translate(l.x, l.y);
-                ctx.rotate(l.rot);
-                ctx.fillStyle = 'rgba(180, 240, 70, 0.45)';
-                ctx.beginPath();
-                ctx.ellipse(0, 0, l.size * 1.8, l.size, 0, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            });
-
-            ctx.restore();
-
-            // 7. SİNEMATİK KARARTMA & VIGNETTE KATMANI (UI Menülerinin Parlaması İçin)
-            const radGrd = ctx.createRadialGradient(bgW / 2, bgH / 2, Math.min(bgW, bgH) * 0.22, bgW / 2, bgH / 2, Math.max(bgW, bgH) * 0.85);
-            radGrd.addColorStop(0, 'rgba(8, 14, 6, 0.38)');
-            radGrd.addColorStop(0.7, 'rgba(5, 10, 4, 0.65)');
-            radGrd.addColorStop(1, 'rgba(2, 6, 2, 0.88)');
-            ctx.fillStyle = radGrd;
-            ctx.fillRect(0, 0, bgW, bgH);
-        }
-
         function animateMenu() {
             _animFrame++;
             
-            // Canlı Oyun Dünyası ve Sinematik Kamera
+            // Canlı, Parlak ve Derin Orman Arka Planı
             if (bgCtx) {
-                renderLiveGameBackground(bgCtx);
+                const grd = bgCtx.createRadialGradient(bgW / 2, bgH / 2, 60, bgW / 2, bgH / 2, Math.max(bgW, bgH) * 0.85);
+                grd.addColorStop(0, '#364F24');
+                grd.addColorStop(0.65, '#243717');
+                grd.addColorStop(1, '#15220E');
+                bgCtx.fillStyle = grd;
+                bgCtx.fillRect(0, 0, bgW, bgH);
+
+                // İnce Izgara Deseni
+                bgCtx.strokeStyle = 'rgba(255,255,255,0.025)';
+                bgCtx.lineWidth = 1.5;
+                const gridSize = 100;
+                for (let x = (_animFrame * 0.2) % gridSize; x < bgW; x += gridSize) {
+                    bgCtx.beginPath(); bgCtx.moveTo(x, 0); bgCtx.lineTo(x, bgH); bgCtx.stroke();
+                }
+                for (let y = (_animFrame * 0.15) % gridSize; y < bgH; y += gridSize) {
+                    bgCtx.beginPath(); bgCtx.moveTo(0, y); bgCtx.lineTo(bgW, y); bgCtx.stroke();
+                }
+
+                // Canlı Ateş Böcekleri & Parıltılar
+                bgParticles.forEach(p => {
+                    p.y -= p.speedY;
+                    p.x += p.speedX;
+                    if (p.y < 0) p.y = bgH;
+                    if (p.x < 0) p.x = bgW;
+                    if (p.x > bgW) p.x = 0;
+
+                    const pulse = p.alpha * (0.6 + Math.sin(_animFrame * 0.05 + p.x) * 0.4);
+                    bgCtx.fillStyle = `rgba(180, 240, 70, ${pulse})`;
+                    bgCtx.shadowColor = '#b4f046';
+                    bgCtx.shadowBlur = 6;
+                    bgCtx.beginPath();
+                    bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    bgCtx.fill();
+                    bgCtx.shadowBlur = 0;
+                });
             }
 
-            // 1. Ana Ekran Aktif Karakter Canvası
+            // 1. Ana Ekran Aktif Karakter Canvası (Canlı & Sağa Bakan)
             const apc = document.getElementById('active-pet-canvas');
             if (apc) {
                 const actx = apc.getContext('2d');
                 actx.clearRect(0, 0, 86, 86);
-                drawExactInGamePlayer(actx, 36, 54, _currentSkin, _equippedWeapon, _animFrame, 0.42);
+                drawExactInGamePlayer(actx, 38, 54, _currentSkin, _equippedWeapon, _animFrame, 0.44);
             }
 
-            // 2. Cosmetics (Envanter) Önizleme Canvası
+            // 2. Cosmetics (Envanter) Önizleme Canvası (Canlı)
             const cpc = document.getElementById('cosmetic-preview-canvas');
             if (cpc) {
                 const cctx = cpc.getContext('2d');
                 cctx.clearRect(0, 0, 200, 200);
                 const prevSkin = (_cosmeticPreviewItem && _cosmeticPreviewItem.cat === 'deriler') ? _cosmeticPreviewItem.item.id : _currentSkin;
                 const prevWep = (_cosmeticPreviewItem && (_cosmeticPreviewItem.cat === 'baltalar' || _cosmeticPreviewItem.cat === 'kiliclar')) ? _cosmeticPreviewItem.item.id : _equippedWeapon;
-                drawExactInGamePlayer(cctx, 85, 125, prevSkin, prevWep, _animFrame, 0.72);
+                drawExactInGamePlayer(cctx, 95, 125, prevSkin, prevWep, _animFrame, 0.74);
             }
 
-            // 3. Shop (Mağaza) Önizleme Canvası
+            // 3. Shop (Mağaza) Önizleme Canvası (Canlı)
             const spc = document.getElementById('shop-preview-canvas');
             if (spc) {
                 const sctx = spc.getContext('2d');
                 sctx.clearRect(0, 0, 200, 200);
                 const prevSkin = (_shopPreviewItem && _shopPreviewItem.cat === 'deriler') ? _shopPreviewItem.item.id : _currentSkin;
                 const prevWep = (_shopPreviewItem && (_shopPreviewItem.cat === 'baltalar' || _shopPreviewItem.cat === 'kiliclar')) ? _shopPreviewItem.item.id : _equippedWeapon;
-                drawExactInGamePlayer(sctx, 85, 125, prevSkin, prevWep, _animFrame, 0.72);
+                drawExactInGamePlayer(sctx, 95, 125, prevSkin, prevWep, _animFrame, 0.74);
             }
 
             requestAnimationFrame(animateMenu);
         }
 
         /* ════════════════════════════════════════════════════════════════
-           14. BAŞLANGIÇ YÜKLEMESİ
+           13. BAŞLANGIÇ YÜKLEMESİ
         ════════════════════════════════════════════════════════════════ */
         window.addEventListener('DOMContentLoaded', () => {
             resizeBackground();
             loadSavedSettings();
             updateAudioUI();
             updateChallengeProgress();
-            initSpectatorSocket();
             
             const savedName = localStorage.getItem('fb_name');
             if (savedName) document.getElementById('name-input').value = savedName;

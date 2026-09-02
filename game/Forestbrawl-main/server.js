@@ -40,17 +40,62 @@ const QUESTS_LIST = [
   { id: 'q_gold_1000', title: 'Zengin Savaşçı', desc: 'Toplam 1000 Altına ulaş', icon: '💎', key: 'gold', target: 1000, rewardCoins: 500, rewardXp: 400 }
 ];
 
+const RANKS = [0, 500, 1500, 3500, 7000, 12000, 20000, 35000, 60000, 100000, 180000, 300000];
+const RANK_NAMES = ['Tohum', 'Taş', 'Köylü', 'Acemi', 'Savaşçı', 'Muhafız', 'Ateş Efendisi', 'Kristal', 'Fırtına', 'Gece Hanı', 'Efsane', 'Tanrısal'];
+const RANK_ICONS = ['🌱', '🪨', '🪵', '🏹', '⚔️', '🛡️', '🔥', '💎', '🌪️', '🌙', '👑', '✨'];
+
+function rankInfo(xp) {
+  let rankId = 0;
+  for (let i = 0; i < RANKS.length; i++) {
+    if (xp >= RANKS[i]) rankId = i;
+    else break;
+  }
+  const currentMin = RANKS[rankId];
+  const isMaxRank = rankId >= RANKS.length - 1;
+  const nextMin = isMaxRank ? currentMin : RANKS[rankId + 1];
+  const xpProgress = isMaxRank ? 1 : Math.max(0, Math.min(1, (xp - currentMin) / (nextMin - currentMin)));
+  const xpToNextRank = isMaxRank ? 0 : Math.max(0, nextMin - xp);
+  return {
+    rankId,
+    level: rankId + 1,
+    name: RANK_NAMES[rankId] || 'Tohum',
+    icon: RANK_ICONS[rankId] || '🌱',
+    nextIcon: RANK_ICONS[Math.min(rankId + 1, RANK_ICONS.length - 1)] || '🌱',
+    minXP: currentMin,
+    nextMinXP: nextMin,
+    xpProgress: Math.round(xpProgress * 100) / 100,
+    xpToNextRank
+  };
+}
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  return { salt, hash: crypto.scryptSync(password, salt, 64).toString('hex') };
+}
+
 let accountData = { users: {}, clans: {}, leaderboard: {}, recentDeaths: [], nextId: 1 };
-try {
-  if (fs.existsSync(dataFile)) {
-    const parsed = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+
+function loadAccountData() {
+  const tryLoadFrom = (filePath) => {
+    if (!fs.existsSync(filePath)) return null;
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      if (!content || !content.trim()) return null;
+      return JSON.parse(content);
+    } catch (e) {
+      console.warn(`Failed reading JSON from ${filePath}:`, e.message);
+      return null;
+    }
+  };
+
+  let parsed = tryLoadFrom(dataFile) || tryLoadFrom(dataFile + '.bak');
+  if (parsed && typeof parsed === 'object') {
     const rawUsers = parsed.users || {};
     const cleanUsers = {};
     for (const [k, u] of Object.entries(rawUsers)) {
-      if (u && typeof u === 'object' && u.username && u.hash) {
+      if (u && typeof u === 'object' && u.username && (u.hash || u.password)) {
         const uKey = String(u.username).trim().toLowerCase();
         cleanUsers[uKey] = {
-          id: u.id || parsed.nextId || 1,
+          id: u.id || 1,
           username: u.username,
           email: u.email || '',
           salt: u.salt || '',
@@ -82,11 +127,14 @@ try {
       recentDeaths: Array.isArray(parsed.recentDeaths) ? parsed.recentDeaths : [],
       nextId: Math.max(parsed.nextId || 1, Object.keys(cleanUsers).length + 1)
     };
+    console.log(`[Database] Loaded ${Object.keys(cleanUsers).length} users and ${Object.keys(accountData.clans).length} clans.`);
+  } else {
+    console.log('[Database] Starting with fresh database.');
+    accountData = { users: {}, clans: {}, leaderboard: {}, recentDeaths: [], nextId: 1 };
   }
-} catch (error) {
-  console.warn('Could not load account data:', error.message);
-  accountData = { users: {}, clans: {}, leaderboard: {}, recentDeaths: [], nextId: 1 };
 }
+
+loadAccountData();
 for (const clan of Object.values(accountData.clans || {})) clans.set(clan.id, clan);
 
 let _saveTimeout = null;
@@ -97,7 +145,17 @@ function saveAccountData(immediate = false) {
       accountData.clans = Object.fromEntries(clans);
       const dataStr = JSON.stringify(accountData, null, 2);
       const tmpFile = dataFile + '.tmp';
+      const bakFile = dataFile + '.bak';
+
+      // Atomic write to tmp file
       fs.writeFileSync(tmpFile, dataStr, 'utf8');
+
+      // Backup current file if exists
+      if (fs.existsSync(dataFile)) {
+        try { fs.copyFileSync(dataFile, bakFile); } catch(e) {}
+      }
+
+      // Rename tmp to dataFile
       fs.renameSync(tmpFile, dataFile);
     } catch (error) {
       try {
@@ -107,6 +165,7 @@ function saveAccountData(immediate = false) {
       }
     }
   };
+
   if (immediate) {
     if (_saveTimeout) { clearTimeout(_saveTimeout); _saveTimeout = null; }
     doSave();
@@ -115,42 +174,16 @@ function saveAccountData(immediate = false) {
       _saveTimeout = setTimeout(() => {
         _saveTimeout = null;
         doSave();
-      }, 300);
+      }, 250);
     }
   }
 }
 
-function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
-  return { salt, hash: crypto.scryptSync(password, salt, 64).toString('hex') };
-}
-
-const RANKS = [0, 500, 1500, 3500, 7000, 12000, 20000, 35000, 60000, 100000, 180000, 300000];
-const RANK_NAMES = ['Tohum', 'Taş', 'Köylü', 'Acemi', 'Savaşçı', 'Muhafız', 'Ateş Efendisi', 'Kristal', 'Fırtına', 'Gece Hanı', 'Efsane', 'Tanrısal'];
-const RANK_ICONS = ['🌱', '🪨', '🪵', '🏹', '⚔️', '🛡️', '🔥', '💎', '🌪️', '🌙', '👑', '✨'];
-
-function rankInfo(xp) {
-  let rankId = 0;
-  for (let i = 0; i < RANKS.length; i++) {
-    if (xp >= RANKS[i]) rankId = i;
-    else break;
-  }
-  const currentMin = RANKS[rankId];
-  const isMaxRank = rankId >= RANKS.length - 1;
-  const nextMin = isMaxRank ? currentMin : RANKS[rankId + 1];
-  const xpProgress = isMaxRank ? 1 : Math.max(0, Math.min(1, (xp - currentMin) / (nextMin - currentMin)));
-  const xpToNextRank = isMaxRank ? 0 : Math.max(0, nextMin - xp);
-  return {
-    rankId,
-    level: rankId + 1,
-    name: RANK_NAMES[rankId] || 'Tohum',
-    icon: RANK_ICONS[rankId] || '🌱',
-    nextIcon: RANK_ICONS[Math.min(rankId + 1, RANK_ICONS.length - 1)] || '🌱',
-    minXP: currentMin,
-    nextMinXP: nextMin,
-    xpProgress: Math.round(xpProgress * 100) / 100,
-    xpToNextRank
-  };
-}
+// Auto-save every 20 seconds and on process exit
+setInterval(() => saveAccountData(true), 20000);
+process.on('SIGINT', () => { saveAccountData(true); process.exit(0); });
+process.on('SIGTERM', () => { saveAccountData(true); process.exit(0); });
+process.on('exit', () => { saveAccountData(true); });
 
 function publicUser(user) {
   const rInfo = rankInfo(user.xp || 0);

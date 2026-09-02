@@ -416,7 +416,10 @@ body>iframe[style]{
   position:fixed;z-index:100;pointer-events:auto;
   width:128px;height:128px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  filter:drop-shadow(0 16px 24px rgba(0,0,0,0.45));
+  background:transparent !important;
+  border:none !important;
+  outline:none !important;
+  box-shadow:none !important;
   touch-action:none;
   user-select:none;-webkit-user-select:none;
 }
@@ -426,42 +429,29 @@ body>iframe[style]{
 .joy-zone.joy-active .joy-stick{opacity:1;}
 .joy-zone::before,
 .joy-zone::after{
-  content:"";position:absolute;border-radius:50%;pointer-events:none;
-}
-.joy-zone::before{
-  inset:8px;border:2px solid rgba(255,255,255,0.14);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04),0 0 12px rgba(0,0,0,0.28);
-}
-.joy-zone::after{
-  inset:22px;border:1px solid rgba(255,255,255,0.08);
+  display:none !important;
+  content:none !important;
 }
 @media (hover: hover) and (pointer: fine) {
   .joy-zone { display: none !important; pointer-events: none !important; }
 }
 #joy-left{left:max(env(safe-area-inset-left,0px),12px);bottom:max(env(safe-area-inset-bottom,0px),14px);}
 #joy-right{right:max(env(safe-area-inset-right,0px),12px);bottom:max(env(safe-area-inset-bottom,0px),14px);}
-#joy-left .joy-base{
-  position:absolute;top:50%;left:50%;width:88px;height:88px;transform:translate(-50%,-50%);
-  border-radius:50%;
-  background:radial-gradient(circle at 34% 28%, rgba(146,255,204,0.48), rgba(18,87,63,0.95) 24%, rgba(6,18,16,0.98) 55%, rgba(2,8,8,1) 100%);
-  border:2px solid rgba(149,255,195,0.9);
-  box-shadow:inset 0 0 18px rgba(142,255,210,0.2), inset 0 10px 18px rgba(255,255,255,0.08), 0 0 24px rgba(51,195,136,0.26);
-}
+#joy-left .joy-base,
 #joy-right .joy-base{
-  position:absolute;top:50%;left:50%;width:88px;height:88px;transform:translate(-50%,-50%);
-  border-radius:50%;
-  background:radial-gradient(circle at 34% 28%, rgba(255,207,116,0.42), rgba(124,68,16,0.94) 24%, rgba(19,12,9,0.98) 55%, rgba(4,4,4,1) 100%);
-  border:2px solid rgba(255,196,104,0.9);
-  box-shadow:inset 0 0 18px rgba(255,180,90,0.2), inset 0 10px 18px rgba(255,255,255,0.06), 0 0 22px rgba(255,140,55,0.2);
+  position:absolute;top:50%;left:50%;width:104px;height:104px;transform:translate(-50%,-50%);
+  border-radius:50%;pointer-events:none;
+  filter:drop-shadow(0 8px 18px rgba(0,0,0,0.65));
 }
 #joy-left .joy-stick,
 #joy-right .joy-stick{
-  position:absolute;top:50%;left:50%;width:42px;height:42px;transform:translate(-50%,-50%);
-  border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.98), rgba(240,246,255,0.92) 22%, rgba(145,175,206,0.82) 62%, rgba(78,90,110,0.84) 100%);
-  border:2px solid rgba(255,255,255,0.72);box-shadow:0 10px 18px rgba(0,0,0,0.45), inset 0 2px 6px rgba(255,255,255,0.58), inset 0 -3px 8px rgba(0,0,0,0.28);
+  position:absolute;top:50%;left:50%;width:46px;height:46px;transform:translate(-50%,-50%);
+  border-radius:50%;pointer-events:none;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,0.7));
 }
-#joy-right .joy-stick{background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.98), rgba(255,214,134,0.92) 28%, rgba(255,148,70,0.82) 65%, rgba(149,95,44,0.82) 100%);border-color:rgba(255,221,162,0.88);}
+.joy-svg-base, .joy-svg-stick{
+  display:block;width:100%;height:100%;
+}
 #dash-btn{
   position:fixed;
   right:max(env(safe-area-inset-right,0px),20px);
@@ -664,8 +654,7 @@ body>iframe[style]{
   #kill-feed{max-width:160px;}
   .kf-item{font-size:10px;}
   /* Dynamic joystick: cover left/right halves, invisible until touched */
-  .joy-zone{width:50%;border-radius:0;top:50px;bottom:max(env(safe-area-inset-bottom,0px),70px);height:auto;}
-  .joy-zone::before{inset:14px 10px 14px 10px;border-radius:28px;}
+  .joy-zone{width:50%;border-radius:0;top:50px;bottom:max(env(safe-area-inset-bottom,0px),70px);height:auto;background:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;}
   #joy-left .joy-base, #joy-right .joy-base{width:78px;height:78px;}
   #joy-left .joy-stick, #joy-right .joy-stick{width:36px;height:36px;}
   #joy-left{left:0;bottom:max(env(safe-area-inset-bottom,0px),70px);}
@@ -1766,9 +1755,132 @@ function drawSkinEyesOverlay(c, R, sk, fl) {
   </div>
 </div>
 
-<!-- JOYSTICKS — bottom corners, flush -->
-<div id="joy-left" class="joy-zone"><div class="joy-base"></div><div id="stick-left" class="joy-stick"></div><div class="joy-label">Hareket</div></div>
-<div id="joy-right" class="joy-zone"><div class="joy-base"></div><div id="stick-right" class="joy-stick"></div><div class="joy-label">Atak / Yön</div></div>
+<!-- JOYSTICKS — ultra-detailed custom theme matching reference -->
+<div id="joy-left" class="joy-zone">
+  <div class="joy-base">
+    <svg viewBox="0 0 120 120" class="joy-svg-base">
+      <defs>
+        <radialGradient id="forestBaseGrd" cx="38%" cy="32%" r="65%">
+          <stop offset="0%" stop-color="#34d399" stop-opacity="0.5"/>
+          <stop offset="35%" stop-color="#065f46" stop-opacity="0.88"/>
+          <stop offset="75%" stop-color="#022c22" stop-opacity="0.96"/>
+          <stop offset="100%" stop-color="#01140e" stop-opacity="1"/>
+        </radialGradient>
+        <filter id="emeraldGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2.2" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+      </defs>
+      <!-- Dış Altın/Ahşap Çerçeve -->
+      <circle cx="60" cy="60" r="56" fill="url(#forestBaseGrd)" stroke="#D4AF37" stroke-width="3.5"/>
+      <circle cx="60" cy="60" r="51" fill="none" stroke="#34d399" stroke-width="1.2" stroke-opacity="0.75"/>
+      <circle cx="60" cy="60" r="38" fill="none" stroke="rgba(255,255,255,0.18)" stroke-dasharray="3,4" stroke-width="1.5"/>
+      <!-- 12 Parlayan Orbital Nokta -->
+      <g fill="#4EFA8B" filter="url(#emeraldGlow)">
+        <circle cx="60" cy="22" r="2.2"/><circle cx="79" cy="27" r="2.2"/><circle cx="93" cy="41" r="2.2"/>
+        <circle cx="98" cy="60" r="2.2"/><circle cx="93" cy="79" r="2.2"/><circle cx="79" cy="93" r="2.2"/>
+        <circle cx="60" cy="98" r="2.2"/><circle cx="41" cy="93" r="2.2"/><circle cx="27" cy="79" r="2.2"/>
+        <circle cx="22" cy="60" r="2.2"/><circle cx="27" cy="41" r="2.2"/><circle cx="41" cy="27" r="2.2"/>
+      </g>
+      <!-- 4 Yön Oku (3D Parlayan Zümrüt) -->
+      <path d="M60 9 L70 23 L50 23 Z" fill="#38EF7D" stroke="#064e3b" stroke-width="1.2" filter="url(#emeraldGlow)"/>
+      <path d="M60 9 L70 23 L60 20 Z" fill="#ffffff" opacity="0.5"/>
+      <path d="M111 60 L97 70 L97 50 Z" fill="#38EF7D" stroke="#064e3b" stroke-width="1.2" filter="url(#emeraldGlow)"/>
+      <path d="M111 60 L97 70 L100 60 Z" fill="#ffffff" opacity="0.5"/>
+      <path d="M60 111 L50 97 L70 97 Z" fill="#38EF7D" stroke="#064e3b" stroke-width="1.2" filter="url(#emeraldGlow)"/>
+      <path d="M60 111 L50 97 L60 100 Z" fill="#ffffff" opacity="0.5"/>
+      <path d="M9 60 L23 50 L23 70 Z" fill="#38EF7D" stroke="#064e3b" stroke-width="1.2" filter="url(#emeraldGlow)"/>
+      <path d="M9 60 L23 50 L20 60 Z" fill="#ffffff" opacity="0.5"/>
+      <!-- Sarmaşık ve Yapraklar -->
+      <path d="M22 35 C18 45, 16 75, 26 90 C35 105, 65 110, 85 102 C105 92, 110 65, 102 40 C95 18, 65 12, 45 18" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M28 30 Q20 22 26 18 Q32 24 28 30" fill="#4ade80" stroke="#065f46" stroke-width="0.7"/>
+      <path d="M96 32 Q105 24 100 18 Q92 22 96 32" fill="#4ade80" stroke="#065f46" stroke-width="0.7"/>
+      <path d="M106 72 Q114 80 110 86 Q102 82 106 72" fill="#4ade80" stroke="#065f46" stroke-width="0.7"/>
+      <path d="M30 96 Q22 104 18 98 Q24 92 30 96" fill="#4ade80" stroke="#065f46" stroke-width="0.7"/>
+      <path d="M72 110 Q80 116 86 112 Q82 104 72 110" fill="#4ade80" stroke="#065f46" stroke-width="0.7"/>
+      <path d="M42 16 Q36 8 42 4 Q48 10 42 16" fill="#4ade80" stroke="#065f46" stroke-width="0.7"/>
+    </svg>
+  </div>
+  <div id="stick-left" class="joy-stick">
+    <svg viewBox="0 0 60 60" class="joy-svg-stick">
+      <defs>
+        <radialGradient id="leftKnobGrd" cx="35%" cy="30%" r="65%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+          <stop offset="28%" stop-color="#6ee7b7" stop-opacity="0.95"/>
+          <stop offset="65%" stop-color="#059669" stop-opacity="0.92"/>
+          <stop offset="100%" stop-color="#064e3b" stop-opacity="1"/>
+        </radialGradient>
+      </defs>
+      <circle cx="30" cy="30" r="28" fill="url(#leftKnobGrd)" stroke="#d4af37" stroke-width="2.5"/>
+      <circle cx="30" cy="30" r="23" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.2"/>
+      <!-- İç Doğa Yaprak Simgesi -->
+      <path d="M30 17 C38 23, 39 37, 30 43 C21 37, 22 23, 30 17 Z" fill="#34d399" stroke="#064e3b" stroke-width="1.2"/>
+      <line x1="30" y1="20" x2="30" y2="40" stroke="#ffffff" stroke-width="1" opacity="0.8"/>
+    </svg>
+  </div>
+</div>
+
+<div id="joy-right" class="joy-zone">
+  <div class="joy-base">
+    <svg viewBox="0 0 120 120" class="joy-svg-base">
+      <defs>
+        <radialGradient id="amberBaseGrd" cx="38%" cy="32%" r="65%">
+          <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.5"/>
+          <stop offset="35%" stop-color="#b45309" stop-opacity="0.88"/>
+          <stop offset="75%" stop-color="#78350f" stop-opacity="0.96"/>
+          <stop offset="100%" stop-color="#1e0a03" stop-opacity="1"/>
+        </radialGradient>
+        <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2.2" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+      </defs>
+      <!-- Dış Altın/Bronz Savaşçı Çerçeve -->
+      <circle cx="60" cy="60" r="56" fill="url(#amberBaseGrd)" stroke="#FFD700" stroke-width="3.5"/>
+      <circle cx="60" cy="60" r="51" fill="none" stroke="#f59e0b" stroke-width="1.2" stroke-opacity="0.75"/>
+      <circle cx="60" cy="60" r="38" fill="none" stroke="rgba(255,255,255,0.18)" stroke-dasharray="3,4" stroke-width="1.5"/>
+      <!-- Hedef / Taktik Çizgileri -->
+      <line x1="60" y1="26" x2="60" y2="39" stroke="#FFD700" stroke-width="2" opacity="0.85"/>
+      <line x1="60" y1="81" x2="60" y2="94" stroke="#FFD700" stroke-width="2" opacity="0.85"/>
+      <line x1="26" y1="60" x2="39" y2="60" stroke="#FFD700" stroke-width="2" opacity="0.85"/>
+      <line x1="81" y1="60" x2="94" y2="60" stroke="#FFD700" stroke-width="2" opacity="0.85"/>
+      <!-- 12 Parlayan Altın Nokta -->
+      <g fill="#FFE066" filter="url(#goldGlow)">
+        <circle cx="60" cy="22" r="2.2"/><circle cx="79" cy="27" r="2.2"/><circle cx="93" cy="41" r="2.2"/>
+        <circle cx="98" cy="60" r="2.2"/><circle cx="93" cy="79" r="2.2"/><circle cx="79" cy="93" r="2.2"/>
+        <circle cx="60" cy="98" r="2.2"/><circle cx="41" cy="93" r="2.2"/><circle cx="27" cy="79" r="2.2"/>
+        <circle cx="22" cy="60" r="2.2"/><circle cx="27" cy="41" r="2.2"/><circle cx="41" cy="27" r="2.2"/>
+      </g>
+      <!-- 4 Yön Oku (3D Parlayan Altın) -->
+      <path d="M60 9 L70 23 L50 23 Z" fill="#FBBF24" stroke="#78350f" stroke-width="1.2" filter="url(#goldGlow)"/>
+      <path d="M60 9 L70 23 L60 20 Z" fill="#ffffff" opacity="0.5"/>
+      <path d="M111 60 L97 70 L97 50 Z" fill="#FBBF24" stroke="#78350f" stroke-width="1.2" filter="url(#goldGlow)"/>
+      <path d="M111 60 L97 70 L100 60 Z" fill="#ffffff" opacity="0.5"/>
+      <path d="M60 111 L50 97 L70 97 Z" fill="#FBBF24" stroke="#78350f" stroke-width="1.2" filter="url(#goldGlow)"/>
+      <path d="M60 111 L50 97 L60 100 Z" fill="#ffffff" opacity="0.5"/>
+      <path d="M9 60 L23 50 L23 70 Z" fill="#FBBF24" stroke="#78350f" stroke-width="1.2" filter="url(#goldGlow)"/>
+      <path d="M9 60 L23 50 L20 60 Z" fill="#ffffff" opacity="0.5"/>
+    </svg>
+  </div>
+  <div id="stick-right" class="joy-stick">
+    <svg viewBox="0 0 60 60" class="joy-svg-stick">
+      <defs>
+        <radialGradient id="rightKnobGrd" cx="35%" cy="30%" r="65%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+          <stop offset="28%" stop-color="#fde68a" stop-opacity="0.95"/>
+          <stop offset="65%" stop-color="#d97706" stop-opacity="0.92"/>
+          <stop offset="100%" stop-color="#78350f" stop-opacity="1"/>
+        </radialGradient>
+      </defs>
+      <circle cx="30" cy="30" r="28" fill="url(#rightKnobGrd)" stroke="#ffd700" stroke-width="2.5"/>
+      <circle cx="30" cy="30" r="23" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.2"/>
+      <!-- İç Savaş Kılıç / Nişan Simgesi -->
+      <line x1="20" y1="20" x2="40" y2="40" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="40" y1="20" x2="20" y2="40" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="30" cy="30" r="4.5" fill="#f59e0b" stroke="#ffffff" stroke-width="1.2"/>
+    </svg>
+  </div>
+</div>
 <div id="mobile-eat-btn" title="Yemek Ye / Can Doldur" ontouchstart="event.preventDefault(); event.stopPropagation(); eatApple();" onclick="eatApple();">
   <img src="asset/apple.png" alt="Elma" class="mobile-eat-icon" onerror="this.outerHTML='🍎'" />
   <span id="mobile-apple-count" class="mobile-eat-count">5</span>
@@ -2072,7 +2184,7 @@ const _GAME_MODE = urlParams.get('mode') === 'offline' ? 'offline' : 'online';
 
 const _isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth < 900;
 const _lowPowerDevice = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4) || /Android\s+[1-7]|iPhone|iPad/i.test(navigator.userAgent);
-let ZOOM = _isMobile ? 0.74 : 0.68;
+let ZOOM = _isMobile ? 0.58 : 0.68;
 let camX = 0, camY = 0, _camReady = false;
 
 // ── Large Taming.io / Sploop.io-inspired world — 4 biome families only ───────
@@ -5845,7 +5957,7 @@ function setupJoy(zoneId, stickId, isMove) {
   const base = zone ? zone.querySelector('.joy-base') : null;
   if (!zone || !stick) return;
   let active = false, cx, cy, currentId = null, lastDist = 0;
-  const maxDist = 30; // was 40 — smaller travel radius for compact joystick
+  const maxDist = 36;
 
   zone.addEventListener('touchstart', e => {
     e.preventDefault();
@@ -5860,7 +5972,7 @@ function setupJoy(zoneId, stickId, isMove) {
     if (base) {
       base.style.position = 'absolute';
       base.style.left = relX + 'px'; base.style.top = relY + 'px';
-      base.style.width = '60px'; base.style.height = '60px'; // was 82px
+      base.style.width = '104px'; base.style.height = '104px';
       base.style.transform = 'translate(-50%,-50%)';
     }
     stick.style.left = relX + 'px'; stick.style.top = relY + 'px';
@@ -5906,8 +6018,8 @@ function setupJoy(zoneId, stickId, isMove) {
         stick.style.left = '50%'; stick.style.top = '50%';
         stick.style.transform = 'translate(-50%,-50%)';
         if (base) {
-          base.style.left = '0'; base.style.top = '0';
-          base.style.width = '60px'; base.style.height = '60px';
+          base.style.left = '50%'; base.style.top = '50%';
+          base.style.width = '104px'; base.style.height = '104px';
           base.style.transform = 'translate(-50%,-50%)';
         }
         if (isMove) { player.vx = 0; player.vy = 0; _joystickActive = false; }
