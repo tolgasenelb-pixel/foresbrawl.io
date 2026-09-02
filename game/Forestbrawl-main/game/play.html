@@ -408,6 +408,7 @@ body>iframe[style]{
   width:120px;height:120px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
   filter:drop-shadow(0 12px 20px rgba(0,0,0,0.35));
+  touch-action:none;
 }
 /* Base + stick hidden until activated */
 .joy-base{opacity:0;transition:opacity 0.12s ease;}
@@ -432,20 +433,24 @@ body>iframe[style]{
 }
 #joy-left .joy-base{
   position:absolute;top:50%;left:50%;width:88px;height:88px;transform:translate(-50%,-50%);
-  border-radius:50%;background:radial-gradient(circle at 32% 28%, rgba(120,255,190,0.28), rgba(14,29,24,0.86) 38%, rgba(7,12,12,0.96) 70%);
-  border:2px solid rgba(120,255,190,0.7);box-shadow:inset 0 0 18px rgba(100,255,180,0.12), 0 0 18px rgba(48,175,120,0.22);
+  border-radius:50%;
+  background:radial-gradient(circle at 32% 28%, rgba(140,255,210,0.38), rgba(16,60,48,0.95) 25%, rgba(6,16,15,0.97) 62%, rgba(2,8,8,0.98) 100%);
+  border:2px solid rgba(126,255,193,0.88);
+  box-shadow:inset 0 0 18px rgba(130,255,210,0.16), 0 0 24px rgba(54,183,130,0.24), inset 0 10px 18px rgba(255,255,255,0.06);
 }
 #joy-right .joy-base{
   position:absolute;top:50%;left:50%;width:88px;height:88px;transform:translate(-50%,-50%);
-  border-radius:50%;background:radial-gradient(circle at 32% 28%, rgba(255,200,115,0.22), rgba(38,22,10,0.88) 38%, rgba(16,10,8,0.96) 70%);
-  border:2px solid rgba(255,188,92,0.72);box-shadow:inset 0 0 16px rgba(255,170,75,0.12), 0 0 18px rgba(255,170,75,0.22);
+  border-radius:50%;
+  background:radial-gradient(circle at 32% 28%, rgba(255,220,138,0.34), rgba(78,45,14,0.94) 24%, rgba(20,12,8,0.98) 62%, rgba(4,4,4,1) 100%);
+  border:2px solid rgba(255,190,92,0.9);
+  box-shadow:inset 0 0 18px rgba(255,176,82,0.12), 0 0 24px rgba(255,150,60,0.18), inset 0 10px 18px rgba(255,255,255,0.05);
 }
 #joy-left .joy-stick,
 #joy-right .joy-stick{
   position:absolute;top:50%;left:50%;width:42px;height:42px;transform:translate(-50%,-50%);
   border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.95), rgba(220,230,240,0.92) 25%, rgba(150,170,190,0.8) 62%, rgba(72,88,110,0.82) 100%);
-  border:2px solid rgba(255,255,255,0.6);box-shadow:0 8px 16px rgba(0,0,0,0.42), inset 0 2px 5px rgba(255,255,255,0.5);
+  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.96), rgba(235,239,246,0.9) 22%, rgba(146,173,196,0.8) 62%, rgba(82,96,112,0.84) 100%);
+  border:2px solid rgba(255,255,255,0.7);box-shadow:0 10px 18px rgba(0,0,0,0.42), inset 0 2px 6px rgba(255,255,255,0.55), inset 0 -3px 8px rgba(0,0,0,0.28);
 }
 #joy-right .joy-stick{background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.96), rgba(255,212,128,0.92) 28%, rgba(255,148,70,0.82) 65%, rgba(151,92,42,0.8) 100%);border-color:rgba(255,217,153,0.9);}
 #dash-btn{
@@ -17075,81 +17080,8 @@ setInterval(function(){
   }catch(e){}
 },1000);
 
-// ── 3. MOBİL JOYSTICK İYİLEŞTİRME ───────────────────────────
-(function(){
-  var isMob=('ontouchstart' in window||navigator.maxTouchPoints>0)&&window.innerWidth<900;
-  if(!isMob)return;
-
-  // Attack direction arc indicator
-  var atkInd=document.createElement('div');
-  atkInd.id='joy-atk-indicator';
-  atkInd.style.cssText='position:fixed;right:22px;bottom:108px;width:86px;height:86px;border-radius:50%;pointer-events:none;z-index:4001;display:none;border:2px solid rgba(255,100,40,0.55);background:rgba(255,50,10,0.07);transition:opacity .1s;';
-  atkInd.innerHTML='<canvas id="_joyAtkCanvas" width="86" height="86" style="position:absolute;inset:0;"></canvas>';
-  document.body.appendChild(atkInd);
-
-  var _jac=document.getElementById('_joyAtkCanvas');
-  var _jacCtx=_jac?_jac.getContext('2d'):null;
-
-  function _drawAtkArc(ang){
-    if(!_jacCtx)return;
-    var W=86,cx=W/2,cy=W/2;
-    _jacCtx.clearRect(0,0,W,W);
-    // Arrow line
-    _jacCtx.save();
-    _jacCtx.strokeStyle='rgba(255,100,30,0.85)';
-    _jacCtx.lineWidth=2.5;
-    _jacCtx.lineCap='round';
-    _jacCtx.beginPath();
-    _jacCtx.moveTo(cx,cy);
-    _jacCtx.lineTo(cx+Math.cos(ang)*30,cy+Math.sin(ang)*30);
-    _jacCtx.stroke();
-    // Arrowhead
-    _jacCtx.fillStyle='rgba(255,100,30,0.9)';
-    var hx=cx+Math.cos(ang)*30,hy=cy+Math.sin(ang)*30;
-    _jacCtx.beginPath();
-    _jacCtx.moveTo(hx,hy);
-    _jacCtx.lineTo(hx+Math.cos(ang+2.5)*9,hy+Math.sin(ang+2.5)*9);
-    _jacCtx.lineTo(hx+Math.cos(ang-2.5)*9,hy+Math.sin(ang-2.5)*9);
-    _jacCtx.fill();
-    _jacCtx.restore();
-  }
-
-  var _joyR=document.getElementById('joy-right');
-  if(!_joyR)return;
-  var _hapticDone=false;
-
-  _joyR.addEventListener('touchstart',function(e){
-    _hapticDone=false;
-    atkInd.style.display='block';
-    atkInd.style.opacity='0';
-    setTimeout(function(){ atkInd.style.opacity='1'; }, 30);
-  },{passive:true});
-
-  _joyR.addEventListener('touchmove',function(e){
-    var t=e.touches[0]; if(!t) return;
-    var r=_joyR.getBoundingClientRect();
-    var cx=r.left+r.width/2, cy=r.top+r.height/2;
-    var dx=t.clientX-cx, dy=t.clientY-cy;
-    var dist=Math.hypot(dx,dy);
-    if(dist<7){
-      if(typeof player!=='undefined') player.isAttacking=false;
-      return;
-    }
-    var ang=Math.atan2(dy,dx);
-    _drawAtkArc(ang);
-    if(!_hapticDone && dist>10){
-      if(navigator.vibrate) navigator.vibrate(10);
-      _hapticDone=true;
-    }
-  },{passive:true});
-
-  function _atkEnd(){
-    atkInd.style.display='none';
-    _hapticDone=false;
-  }
-  _joyR.addEventListener('touchend',_atkEnd,{passive:true});
-  _joyR.addEventListener('touchcancel',_atkEnd,{passive:true});
-})();
+// ── 3. MOBİL JOYSTICK İYİLEŞTİRME (görsel hedef dairesi kaldırıldı) ───────────────────────────
+// Attack direction arc indicator intentionally removed to keep the HUD cleaner.
 
 // ── 4. KONUK → HESAP KAYDETME ────────────────────────────────
 (function(){
