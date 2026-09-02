@@ -5487,13 +5487,28 @@ const _BUP_THEMES = {
 };
 
 function showBuildUpgradePanel(b) {
-  _bup_building = null;
-  hideBuildUpgradePanel();
-}
-function hideBuildUpgradePanel() {
+  // Upgrade flow is intentionally disabled in this build.
   _bup_building = null;
   const pnl = document.getElementById('build-upg-panel');
   if (pnl) pnl.classList.remove('bup-open');
+  return;
+}
+function hideBuildUpgradePanel() {
+  // Build upgrade panel is intentionally disabled; never leave stale state behind.
+  _bup_building = null;
+  const pnl = document.getElementById('build-upg-panel');
+  if (pnl) pnl.classList.remove('bup-open');
+}
+function _clearTrapLock() {
+  _trapCaughtBy = null;
+  _trapCaughtX = undefined;
+  _trapCaughtY = undefined;
+  if (player) {
+    player.vx = 0;
+    player.vy = 0;
+    player.momX = 0;
+    player.momY = 0;
+  }
 }
 function _refreshBuildUpgradePanel() {
   if (!_bup_building) return;
@@ -12514,8 +12529,7 @@ function update(timestamp = 0) {
     const _ftChk = _buildingsMap.get(_trapCaughtBy) || buildings.find(b => (b._netId === _trapCaughtBy || b.id === _trapCaughtBy || b._bLid === _trapCaughtBy));
     if (!_ftChk || _ftChk.hp <= 0) {
       // Trap destroyed or removed — auto-free player client-side
-      _trapCaughtBy = null;
-      _trapCaughtX = undefined; _trapCaughtY = undefined;
+      _clearTrapLock();
       playSound(320, 0.12, 'sine', 0.22);
     } else {
       if (_trapCaughtX !== undefined) { player.x = _trapCaughtX; player.y = _trapCaughtY; }
@@ -12620,8 +12634,7 @@ function update(timestamp = 0) {
       if (_trapCaughtX !== undefined) { player.x = _trapCaughtX; player.y = _trapCaughtY; }
       player.vx = 0; player.vy = 0; player.momX = 0; player.momY = 0;
     } else {
-      _trapCaughtBy = null;
-      _trapCaughtX = undefined; _trapCaughtY = undefined;
+      _clearTrapLock();
     }
   }
 
@@ -13544,7 +13557,9 @@ function _findOwnBldAt(clientX, clientY) {
 }
 
 function _toggleUpgPanel(b) {
+  // Upgrade panel is disabled in this build.
   hideBuildUpgradePanel();
+  return false;
 }
 
 function _handleBuildInteraction(e) {
@@ -14254,7 +14269,7 @@ function initMultiplayer() {
   // Trap freed — trap was destroyed or owner left
   _socket.on('trap_freed', ({ buildingId } = {}) => {
     if (!buildingId || _trapCaughtBy === buildingId) {
-      _trapCaughtBy = null;
+      _clearTrapLock();
       playSound(320, 0.12, 'sine', 0.22);
     }
     _otherPlayers.forEach((p) => {
