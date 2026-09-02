@@ -493,6 +493,15 @@ body>iframe[style]{
 }
 
 /* Inventory Food Slot */
+#slot-food {
+  overflow: visible;
+}
+#slot-food .inv-icon-canvas {
+  display: block;
+  width: 30px;
+  height: 30px;
+  margin: 0 auto;
+}
 .inv-slot.slot-food {
   background: rgba(46, 204, 113, 0.18);
   border-color: rgba(46, 204, 113, 0.55);
@@ -12128,16 +12137,16 @@ function update(timestamp = 0) {
     const dist = Math.hypot(dx, dy);
 
     const spd = e.speed || 0.52;
-    // Do not let every mob get pulled into a universal tiny aggro radius.
-    // Each mob keeps its own detection range, but they still only chase while close enough to be threatening.
+    // Every mob can keep a unique aggro profile, but no mob should start chasing from across the map.
+    // We enforce a strict close-range threshold so they only engage when the player is already in their face.
     const _baseAggro = e.aggroRange || 110;
-    const _effAggro = Math.min(_baseAggro, 220);
-    const _aggroRetreat = _effAggro * 1.8;
+    const _effAggro = Math.min(Math.max(70, _baseAggro * 0.35), 125);
+    const _aggroRetreat = _effAggro * 1.5;
     if (!e.provoked && dist < _effAggro) e.provoked = true;
     if (e.provoked && dist > _aggroRetreat) e.provoked = false;
     if (e.provoked) {
-      const _chaseScale = e.speed > 1.1 ? 0.78 : 0.9;
-      if (dist < _effAggro * 1.8) {
+      const _chaseScale = e.speed > 1.1 ? 0.72 : 0.82;
+      if (dist < _effAggro * 1.35) {
         e.vx += (dx / dist) * spd * _dt * _chaseScale;
         e.vy += (dy / dist) * spd * _dt * _chaseScale;
       }
@@ -12695,8 +12704,8 @@ function update(timestamp = 0) {
     camY += (player.y - canvas.height/2 - camY) * _camFactor;
   }
 
-  // ── PC & Mobil Kamera Yakınlığı (oyuncudan hafifçe daha uzakta, daha rahat çerçeve) ──
-  const _baseTarget = _onTrain ? (_isMobile ? 0.62 : 0.66) : (_isMobile ? 0.54 : 0.53);
+  // ── PC & Mobil Kamera Yakınlığı (mobilde oyuncudan daha uzakta, daha rahat çerçeve) ──
+  const _baseTarget = _onTrain ? (_isMobile ? 0.62 : 0.66) : (_isMobile ? 0.60 : 0.53);
   const _zoomTarget = Math.max(0.52, Math.min(0.82, _baseTarget * _userZoomMultiplier));
   ZOOM += (_zoomTarget - ZOOM) * 0.065;
 
@@ -17622,21 +17631,18 @@ function _drawSlotBase(ctx){
 function _drawFoodSlot(slotCtx) {
   _drawSlotBase(slotCtx);
   const img = _SPRITES['asset/apple.png'] || _SPRITES['resourceasset/apple.png'] || _SPRITES['asset/apple'];
+  slotCtx.save();
+  slotCtx.translate(20, 20);
   if (img && img.complete && img.naturalWidth > 0) {
-    slotCtx.save();
-    slotCtx.translate(20, 20);
     slotCtx.drawImage(img, -14, -14, 28, 28);
-    slotCtx.restore();
   } else {
-    slotCtx.save();
-    slotCtx.translate(20, 20);
     slotCtx.font = 'bold 20px sans-serif';
     slotCtx.textAlign = 'center';
     slotCtx.textBaseline = 'middle';
     slotCtx.fillStyle = '#fef2f2';
     slotCtx.fillText('🍎', 0, 2);
-    slotCtx.restore();
   }
+  slotCtx.restore();
 }
 
 function _drawSpriteToSlot(ctx, img) {
