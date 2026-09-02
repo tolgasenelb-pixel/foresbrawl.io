@@ -5859,7 +5859,8 @@ function setupJoy(zoneId, stickId, isMove) {
     stick.style.transform = `translate(calc(-50% + ${ox}px), calc(-50% + ${oy}px))`;
     lastDist = dist;
     if (isMove) {
-      const moveScale = window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 5.6 : 6.4;
+      // Must match desktop movement feel exactly: keyboard uses the same 6.4 speed baseline.
+      const moveScale = 6.4;
       player.vx = (ox / maxDist) * moveScale;
       player.vy = (oy / maxDist) * moveScale;
     } else {
