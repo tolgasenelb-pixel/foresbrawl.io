@@ -2013,7 +2013,7 @@ const _GAME_MODE = urlParams.get('mode') === 'offline' ? 'offline' : 'online';
 
 const _isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth < 900;
 const _lowPowerDevice = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4) || /Android\s+[1-7]|iPhone|iPad/i.test(navigator.userAgent);
-let ZOOM = _isMobile ? 0.64 : 0.58;
+let ZOOM = _isMobile ? 0.74 : 0.68;
 let camX = 0, camY = 0, _camReady = false;
 
 // ── Large Taming.io / Sploop.io-inspired world — 4 biome families only ───────
@@ -12082,14 +12082,14 @@ function update(timestamp = 0) {
     const dist = Math.hypot(dx, dy);
 
     const spd = e.speed || 0.52;
-    // Aggro: capped at 110px so mobs only notice player at close range
-    const _effAggro = Math.min(e.aggroRange || 110, 110);
+    // Aggro: keep mobs from lunging from across the map; they should only trigger when close enough.
+    const _effAggro = Math.min(e.aggroRange || 110, 72);
     if (!e.provoked && dist < _effAggro) e.provoked = true;
-    // De-aggro sooner — enemy gives up at 550px
-    if (e.provoked && dist > 550) e.provoked = false;
+    if (e.provoked && dist > 320) e.provoked = false;
     if (e.provoked) {
-      // Scale acceleration by _dt so aggro chase speed is fps-independent
-      if (dist < 650) { e.vx += (dx/dist)*spd*_dt; e.vy += (dy/dist)*spd*_dt; }
+      // Scale acceleration by _dt so aggro chase speed is fps-independent.
+      // Do not chase long-range targets at full speed.
+      if (dist < 420) { e.vx += (dx/dist)*spd*_dt; e.vy += (dy/dist)*spd*_dt; }
     } else {
       // Idle wander — roam slowly when not aggroed (timer-based, not per-frame random)
       if (!e._wanderTimer || --e._wanderTimer <= 0) {
@@ -12151,22 +12151,23 @@ function update(timestamp = 0) {
       e.angle += _eDa * 0.07;
     }
 
-    // Enemy ranged attack
-    if (e.ranged && e.provoked && dist > (player.radius + e.radius + 20) && dist < (e.rangedRange || 220)) {
+    // Enemy ranged attack — only fire when the target is actually nearby, not from across the zone.
+    const _rangedMin = player.radius + e.radius + 26;
+    const _rangedMax = Math.min(e.rangedRange || 220, 180);
+    if (e.ranged && e.provoked && dist > _rangedMin && dist < _rangedMax) {
       if (!e._rangedTimer) e._rangedTimer = Math.floor(Math.random() * (e.rangedCooldown || 100));
       e._rangedTimer--;
       if (e._rangedTimer <= 0) {
         e._rangedTimer = e.rangedCooldown || 100;
         const pa = Math.atan2(player.y - e.y, player.x - e.x);
         const spd = 3.6 + Math.random() * 0.8;
-        // PERF: cap at 30 to prevent heavy-mob-density combat from overflowing the array
         if (enemyProjectiles.length < 30)
           enemyProjectiles.push({ x: e.x + Math.cos(pa)*(e.radius+10), y: e.y + Math.sin(pa)*(e.radius+10), vx: Math.cos(pa)*spd, vy: Math.sin(pa)*spd, dmg: e.rangedDmg || 10, life: 160, color: e.projColor || '#ff4444', r: 7 + e.radius * 0.05, trail: [{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0},{x:0,y:0}], _tH:0, _tN:0 });
         playSound(380 + Math.random()*80, 0.05, 'sine', 0.12);
       }
     }
 
-    // Enemy attacks player — ONLY if already provoked and in melee range
+    // Enemy attacks player — ONLY if already provoked and in close melee range
     // Frost aura — dampen nearby enemy velocity when perk is active
     if (player._frostAura && dist < 190) {
       e.vx *= 0.62; e.vy *= 0.62;
@@ -12177,7 +12178,7 @@ function update(timestamp = 0) {
           _spawnParticle(e.x+(Math.random()-0.5)*e.radius,e.y+(Math.random()-0.5)*e.radius,(Math.random()-0.5)*1.5,Math.random()*-2-0.5,2+Math.random()*2,18,'#88ccff');
       }
     }
-    const mobReach = player.radius + e.radius + 16;
+    const mobReach = Math.min(player.radius + e.radius + 16, 84);
     const _viewPad = Math.max(110, canvas.width / (ZOOM || 0.78) * 0.8, canvas.height / (ZOOM || 0.78) * 0.8);
     const _mobVisible = Math.abs(e.x - (camX + canvas.width / 2)) < _viewPad && Math.abs(e.y - (camY + canvas.height / 2)) < _viewPad;
     if (dist < mobReach && (_mobVisible || dist < 80)) {
@@ -12645,10 +12646,10 @@ function update(timestamp = 0) {
     camY += (player.y - canvas.height/2 - camY) * _camFactor;
   }
 
-  // ── PC & Mobil Kamera Yakınlığı (başlangıçta kendi kendine yakınlaşma olmadan daha dengeli çerçeve) ──
-  const _baseTarget = _onTrain ? (_isMobile ? 0.58 : 0.62) : (_isMobile ? 0.64 : 0.60);
-  const _zoomTarget = Math.max(0.60, Math.min(0.90, _baseTarget * _userZoomMultiplier));
-  ZOOM += (_zoomTarget - ZOOM) * 0.07;
+  // ── PC & Mobil Kamera Yakınlığı (oyuncudan biraz daha uzakta, daha rahat çerçeve) ──
+  const _baseTarget = _onTrain ? (_isMobile ? 0.62 : 0.66) : (_isMobile ? 0.58 : 0.56);
+  const _zoomTarget = Math.max(0.52, Math.min(0.82, _baseTarget * _userZoomMultiplier));
+  ZOOM += (_zoomTarget - ZOOM) * 0.065;
 
   // ── Kamera Sınır Kelepçesi: Ekran dışı / boşluk asla görünmez ──
   const _hvw = (canvas.width / 2) / (ZOOM || 0.78);
@@ -17649,10 +17650,14 @@ function _drawFoodSlot(slotCtx) {
     slotCtx.drawImage(img, -14, -14, 28, 28);
     slotCtx.restore();
   } else {
-    slotCtx.font = '22px sans-serif';
+    slotCtx.save();
+    slotCtx.translate(20, 20);
+    slotCtx.font = 'bold 20px sans-serif';
     slotCtx.textAlign = 'center';
     slotCtx.textBaseline = 'middle';
-    slotCtx.fillText('🍎', 20, 21);
+    slotCtx.fillStyle = '#fef2f2';
+    slotCtx.fillText('🍎', 0, 2);
+    slotCtx.restore();
   }
 }
 
