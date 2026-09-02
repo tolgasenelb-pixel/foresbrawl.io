@@ -44,6 +44,7 @@ for (const clan of Object.values(accountData.clans || {})) clans.set(clan.id, cl
 
 function saveAccountData() {
   try {
+    accountData.users = { ...(accountData.users || {}) };
     accountData.clans = Object.fromEntries(clans);
     fs.writeFileSync(dataFile, JSON.stringify(accountData, null, 2));
   }

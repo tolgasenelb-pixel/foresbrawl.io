@@ -58,6 +58,44 @@
       "games": 16,
       "timePlayed": 0,
       "xp": 9880
+    },
+    "alice": {
+      "id": 4,
+      "username": "alice",
+      "email": "",
+      "salt": "43e03d422c67b3d09a64dafd6928f011",
+      "hash": "30799001fa982c02e4d76696dd2a02035d65243d23c1c717cb3c0b32319f19e308f1a9ddd4f939425ac7001132a180ad6d071dafa22d842f330ca41cbd2f1cf3",
+      "rankId": 0,
+      "xp": 0,
+      "score": 0,
+      "kills": 0,
+      "deaths": 0,
+      "games": 0,
+      "gamesPlayed": 0,
+      "bestScore": 0,
+      "timePlayed": 0,
+      "coins": 1500,
+      "ownedItems": [],
+      "equippedItems": {}
+    },
+    "auto1788310092478": {
+      "id": 5,
+      "username": "auto1788310092478",
+      "email": "",
+      "salt": "ff866d77173e67e46188568b2533f973",
+      "hash": "ddb36ca7ee255a71ba27ae8a667fccef9574f2663a1b7c372da5248168b903ee90f9c67f6b6f59664d584b2ad60bc2d5bb4a860eda868e7349a317a4429a7695",
+      "rankId": 0,
+      "xp": 0,
+      "score": 0,
+      "kills": 0,
+      "deaths": 0,
+      "games": 0,
+      "gamesPlayed": 0,
+      "bestScore": 0,
+      "timePlayed": 0,
+      "coins": 1500,
+      "ownedItems": [],
+      "equippedItems": {}
     }
   },
   "clans": {},
@@ -473,5 +511,5 @@
       "isRegistered": false
     }
   ],
-  "nextId": 4
+  "nextId": 6
 }
