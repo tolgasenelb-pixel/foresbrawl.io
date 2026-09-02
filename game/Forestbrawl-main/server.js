@@ -23,17 +23,50 @@ const dataFile = process.env.DATA_FILE || path.join(__dirname, 'forest-data.json
 const authSecret = process.env.AUTH_SECRET || 'forestbrawl-auth-secret-change-me';
 let worldSeed = Math.floor(Math.random() * 0x7fffffff);
 let nextMobId = 1;
+const airdrops = new Map();
+let nextAirdropId = 1;
+let currentBountyId = null;
+let lastAirdropSpawn = 0;
 
 let accountData = { users: {}, clans: {}, leaderboard: {}, recentDeaths: [], nextId: 1 };
 try {
   if (fs.existsSync(dataFile)) {
     const parsed = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+    const rawUsers = parsed.users || {};
+    const cleanUsers = {};
+    for (const [k, u] of Object.entries(rawUsers)) {
+      if (u && typeof u === 'object' && u.username && u.hash) {
+        const uKey = String(u.username).trim().toLowerCase();
+        cleanUsers[uKey] = {
+          id: u.id || parsed.nextId || 1,
+          username: u.username,
+          email: u.email || '',
+          salt: u.salt || '',
+          hash: u.hash || '',
+          rankId: rankInfo(Number(u.xp || 0)).rankId,
+          xp: Math.max(0, Number(u.xp || 0)),
+          coins: Math.max(0, Number(u.coins ?? u.gold ?? 1500)),
+          gold: Math.max(0, Number(u.coins ?? u.gold ?? 1500)),
+          kills: Math.max(0, Number(u.kills || 0)),
+          deaths: Math.max(0, Number(u.deaths || 0)),
+          games: Math.max(0, Number(u.gamesPlayed || u.games || 0)),
+          gamesPlayed: Math.max(0, Number(u.gamesPlayed || u.games || 0)),
+          score: Math.max(0, Number(u.score || 0)),
+          bestScore: Math.max(0, Number(u.bestScore || u.score || 0)),
+          timePlayed: Math.max(0, Number(u.timePlayed || 0)),
+          ownedItems: Array.isArray(u.ownedItems) ? [...new Set(u.ownedItems)] : [],
+          equippedItems: (u.equippedItems && typeof u.equippedItems === 'object') ? { ...u.equippedItems } : {},
+          createdAt: u.createdAt || Date.now(),
+          lastLoginAt: u.lastLoginAt || Date.now()
+        };
+      }
+    }
     accountData = {
-      users: parsed.users || {},
+      users: cleanUsers,
       clans: parsed.clans || {},
       leaderboard: parsed.leaderboard || {},
       recentDeaths: Array.isArray(parsed.recentDeaths) ? parsed.recentDeaths : [],
-      nextId: parsed.nextId || 1
+      nextId: Math.max(parsed.nextId || 1, Object.keys(cleanUsers).length + 1)
     };
   }
 } catch (error) {
@@ -42,13 +75,35 @@ try {
 }
 for (const clan of Object.values(accountData.clans || {})) clans.set(clan.id, clan);
 
-function saveAccountData() {
-  try {
-    accountData.users = { ...(accountData.users || {}) };
-    accountData.clans = Object.fromEntries(clans);
-    fs.writeFileSync(dataFile, JSON.stringify(accountData, null, 2));
+let _saveTimeout = null;
+function saveAccountData(immediate = false) {
+  const doSave = () => {
+    try {
+      accountData.users = { ...(accountData.users || {}) };
+      accountData.clans = Object.fromEntries(clans);
+      const dataStr = JSON.stringify(accountData, null, 2);
+      const tmpFile = dataFile + '.tmp';
+      fs.writeFileSync(tmpFile, dataStr, 'utf8');
+      fs.renameSync(tmpFile, dataFile);
+    } catch (error) {
+      try {
+        fs.writeFileSync(dataFile, JSON.stringify(accountData, null, 2), 'utf8');
+      } catch (err2) {
+        console.warn('Could not save account data:', err2.message);
+      }
+    }
+  };
+  if (immediate) {
+    if (_saveTimeout) { clearTimeout(_saveTimeout); _saveTimeout = null; }
+    doSave();
+  } else {
+    if (!_saveTimeout) {
+      _saveTimeout = setTimeout(() => {
+        _saveTimeout = null;
+        doSave();
+      }, 300);
+    }
   }
-  catch (error) { console.warn('Could not save account data:', error.message); }
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -88,7 +143,7 @@ function publicUser(user) {
   return {
     id: user.id,
     username: user.username,
-    email: user.email,
+    email: user.email || '',
     rankId: rInfo.rankId,
     rankName: rInfo.name,
     rankIcon: rInfo.icon,
@@ -96,19 +151,19 @@ function publicUser(user) {
     nextRankIcon: rInfo.nextIcon,
     level: rInfo.level,
     score: user.score || 0,
+    bestScore: user.bestScore || user.score || 0,
     kills: user.kills || 0,
     deaths: user.deaths || 0,
     games: user.games || user.gamesPlayed || 0,
     gamesPlayed: user.gamesPlayed || user.games || 0,
-    bestScore: user.bestScore || user.score || 0,
     timePlayed: user.timePlayed || 0,
     xp: user.xp || 0,
     xpProgress: rInfo.xpProgress,
     xpToNextRank: rInfo.xpToNextRank,
-    nextRankName: rInfo.rankId < RANKS.length - 1 ? RANK_NAMES[rInfo.rankId + 1] : null,
     ownedItems: user.ownedItems || [],
     equippedItems: user.equippedItems || {},
-    coins: user.coins ?? 1500
+    coins: user.coins ?? 1500,
+    gold: user.coins ?? 1500
   };
 }
 
@@ -129,24 +184,60 @@ function profileResponse(user) {
   };
 }
 
-function getAuthUser(request) {
+function usernameKey(username) { return String(username || '').trim().toLowerCase(); }
+
+function createToken(user) {
+  const payload = {
+    u: user.username,
+    id: user.id,
+    iat: Date.now()
+  };
+  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const signature = crypto.createHmac('sha256', authSecret).update(encoded).digest('base64url');
+  const token = `${encoded}.${signature}`;
+  sessions.set(token, usernameKey(user.username));
+  return token;
+}
+
+function verifyToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const directUsername = sessions.get(token);
+  if (directUsername && accountData.users[directUsername]) {
+    return accountData.users[directUsername];
+  }
+  if (!token.includes('.')) return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [encoded, signature] = parts;
   try {
-    const header = request.headers.authorization || '';
-    const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-    let username = sessions.get(token);
-    if (!username && token.includes('.')) {
-      const [encodedName, signature] = token.split('.');
-      if (encodedName && signature) {
-        const expected = crypto.createHmac('sha256', authSecret).update(encodedName).digest('base64url');
-        if (signature.length === expected.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
-          username = Buffer.from(encodedName, 'base64url').toString('utf8');
-        }
-      }
+    const expectedSig = crypto.createHmac('sha256', authSecret).update(encoded).digest('base64url');
+    if (signature.length !== expectedSig.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+      return null;
     }
-    return username ? accountData.users[usernameKey(username)] : null;
-  } catch {
+    const decodedStr = Buffer.from(encoded, 'base64url').toString('utf8');
+    let username = '';
+    if (decodedStr.startsWith('{')) {
+      const parsed = JSON.parse(decodedStr);
+      username = parsed.u;
+    } else {
+      username = decodedStr;
+    }
+    const key = usernameKey(username);
+    const user = accountData.users[key];
+    if (user) {
+      sessions.set(token, key);
+      return user;
+    }
+  } catch (e) {
     return null;
   }
+  return null;
+}
+
+function getAuthUser(request) {
+  const header = request.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : (header || '');
+  return verifyToken(token);
 }
 
 function sendJson(response, status, body) {
@@ -163,27 +254,16 @@ function readJson(request) {
   });
 }
 
-function usernameKey(username) { return String(username || '').trim().toLowerCase(); }
-
-function createToken(user) {
-  const encodedName = Buffer.from(user.username, 'utf8').toString('base64url');
-  const signature = crypto.createHmac('sha256', authSecret).update(encodedName).digest('base64url');
-  const token = `${encodedName}.${signature}`;
-  sessions.set(token, usernameKey(user.username));
-  return token;
-}
-
 function recordDeathScore(name, score, gold, kills, timeAlive, userObj) {
   const cleanName = String(name || 'Oyuncu').trim().slice(0, 20) || 'Oyuncu';
-  const key = usernameKey(cleanName);
   const numScore = Math.max(0, Number(score) || 0);
   const numGold = Math.max(0, Number(gold) || 0);
   const numKills = Math.max(0, Number(kills) || 0);
   const numTime = Math.max(0, Number(timeAlive) || 0);
   const now = Date.now();
 
-  const user = userObj || accountData.users[key];
-  if (user) {
+  const user = userObj || null;
+  if (user && user.username) {
     user.gold = Math.max(user.gold || 0, numGold);
     user.coins = Math.max(user.coins || 0, numGold);
     user.score = Math.max(user.score || 0, numScore);
@@ -196,10 +276,12 @@ function recordDeathScore(name, score, gold, kills, timeAlive, userObj) {
     const runXp = numKills * 60 + Math.min(numTime * 2, 600) + (numScore > 0 ? Math.floor(Math.sqrt(numScore) * 8) : 0);
     user.xp = (user.xp || 0) + runXp;
     user.rankId = rankInfo(user.xp).rankId;
+    saveAccountData(true);
   }
 
   if (!accountData.leaderboard) accountData.leaderboard = {};
-  const prev = accountData.leaderboard[key];
+  const leadKey = user ? usernameKey(user.username) : usernameKey(cleanName);
+  const prev = accountData.leaderboard[leadKey];
   const userXp = user ? user.xp : (prev ? prev.score : numScore);
   const rInfo = rankInfo(userXp);
 
@@ -207,8 +289,8 @@ function recordDeathScore(name, score, gold, kills, timeAlive, userObj) {
   const highestGold = prev ? Math.max(prev.gold || 0, numGold) : numGold;
   const highestKills = prev ? Math.max(prev.kills || 0, numKills) : numKills;
 
-  accountData.leaderboard[key] = {
-    name: cleanName,
+  accountData.leaderboard[leadKey] = {
+    name: user ? user.username : cleanName,
     score: highestScore,
     gold: highestGold,
     kills: highestKills,
@@ -224,7 +306,7 @@ function recordDeathScore(name, score, gold, kills, timeAlive, userObj) {
 
   if (!Array.isArray(accountData.recentDeaths)) accountData.recentDeaths = [];
   accountData.recentDeaths.unshift({
-    name: cleanName,
+    name: user ? user.username : cleanName,
     score: numScore,
     gold: numGold,
     kills: numKills,
@@ -243,7 +325,7 @@ function recordDeathScore(name, score, gold, kills, timeAlive, userObj) {
 
 function persistPlayerScore(player) {
   if (!player || !player.name) return;
-  recordDeathScore(player.name, player.score || player.gold, player.gold, player.kills, 0);
+  recordDeathScore(player.name, player.score || player.gold, player.gold, player.kills, 0, player._authUser);
 }
 
 function leaderboard(tab) {
@@ -263,8 +345,8 @@ function leaderboard(tab) {
       kills: Number(user.kills || 0),
       rankId: rInfo.rankId,
       rankName: rInfo.name,
-      lastDate: Date.now(),
-      isRegistered: !!user.hash
+      lastDate: user.lastLoginAt || Date.now(),
+      isRegistered: true
     });
   }
 
@@ -280,11 +362,9 @@ function leaderboard(tab) {
     }
   }
 
-  const entries = [...allMap.values()];
-  if (tab === 'kills') {
-    return entries.sort((a, b) => (b.kills - a.kills) || (b.score - a.score)).slice(0, 100);
-  }
-  return entries.sort((a, b) => (b.score - a.score) || (b.gold - a.gold) || (b.kills - a.kills)).slice(0, 100);
+  const list = [...allMap.values()];
+  list.sort((a, b) => (b.score || 0) - (a.score || 0));
+  return list.slice(0, 50);
 }
 
 async function handleApi(request, response, requestPath) {
@@ -302,19 +382,59 @@ async function handleApi(request, response, requestPath) {
     if (!body.password || String(body.password).length < 4) { sendJson(response, 400, { error: 'Şifre en az 4 karakter olmalı.' }); return true; }
     if (accountData.users[key]) { sendJson(response, 409, { error: 'Bu kullanıcı adı zaten kayıtlı.' }); return true; }
     const password = hashPassword(String(body.password));
-    const user = { id: accountData.nextId++, username, email: String(body.email || '').trim(), ...password, rankId: 0, xp: 0, score: 0, kills: 0, deaths: 0, games: 0, gamesPlayed: 0, bestScore: 0, timePlayed: 0, coins: 1500, ownedItems: [], equippedItems: {} };
-    accountData.users[key] = user; saveAccountData();
-    sendJson(response, 201, { token: createToken(user), user: publicUser(user) }); return true;
+    const initXp = Math.max(0, Math.min(50000, Number(body.initialXp) || 0));
+    const initCoins = Math.max(1800, Number(body.initialGold || body.initialCoins || 1800));
+    const user = {
+      id: accountData.nextId++,
+      username,
+      email: String(body.email || '').trim(),
+      ...password,
+      rankId: rankInfo(initXp).rankId,
+      xp: initXp,
+      score: Math.max(0, Number(body.initialScore) || 0),
+      kills: Math.max(0, Number(body.initialKills) || 0),
+      deaths: 0,
+      games: 0,
+      gamesPlayed: 0,
+      bestScore: Math.max(0, Number(body.initialScore) || 0),
+      timePlayed: Math.max(0, Number(body.initialTime) || 0),
+      coins: initCoins,
+      gold: initCoins,
+      ownedItems: Array.isArray(body.initialOwnedItems) ? [...new Set(body.initialOwnedItems)] : [],
+      equippedItems: (body.initialEquippedItems && typeof body.initialEquippedItems === 'object') ? { ...body.initialEquippedItems } : {},
+      createdAt: Date.now(),
+      lastLoginAt: Date.now()
+    };
+    accountData.users[key] = user;
+    saveAccountData(true);
+    sendJson(response, 201, { token: createToken(user), user: publicUser(user) });
+    return true;
   }
   if (requestPath === '/api/auth/login' && request.method === 'POST') {
     const user = accountData.users[usernameKey(body.username)];
     const password = String(body.password || '');
-    const check = user && hashPassword(password, user.salt).hash;
-    if (!user || !check || !crypto.timingSafeEqual(Buffer.from(check, 'hex'), Buffer.from(user.hash, 'hex'))) { sendJson(response, 401, { error: 'Kullanıcı adı veya şifre hatalı.' }); return true; }
-    sendJson(response, 200, { token: createToken(user), user: publicUser(user) }); return true;
+    const check = user && user.hash && user.salt && hashPassword(password, user.salt).hash;
+    if (!user || !check || !crypto.timingSafeEqual(Buffer.from(check, 'hex'), Buffer.from(user.hash, 'hex'))) {
+      sendJson(response, 401, { error: 'Kullanıcı adı veya şifre hatalı.' });
+      return true;
+    }
+    user.lastLoginAt = Date.now();
+    saveAccountData();
+    sendJson(response, 200, { token: createToken(user), user: publicUser(user) });
+    return true;
   }
-  if (requestPath === '/api/auth/me' && request.method === 'GET') { const user = getAuthUser(request); if (!user) sendJson(response, 401, { error: 'Oturum geçersiz.' }); else sendJson(response, 200, { user: publicUser(user) }); return true; }
-  if (requestPath === '/api/auth/logout' && request.method === 'POST') { const token = String(request.headers.authorization || '').replace(/^Bearer\s+/, ''); sessions.delete(token); sendJson(response, 200, { ok: true }); return true; }
+  if (requestPath === '/api/auth/me' && request.method === 'GET') {
+    const user = getAuthUser(request);
+    if (!user) sendJson(response, 401, { error: 'Oturum geçersiz.' });
+    else sendJson(response, 200, { user: publicUser(user) });
+    return true;
+  }
+  if (requestPath === '/api/auth/logout' && request.method === 'POST') {
+    const token = String(request.headers.authorization || '').replace(/^Bearer\s+/, '');
+    sessions.delete(token);
+    sendJson(response, 200, { ok: true });
+    return true;
+  }
   
   if (requestPath === '/api/leaderboard' && request.method === 'GET') {
     const tab = new URL(request.url, 'http://localhost').searchParams.get('tab') || 'all';
@@ -348,8 +468,13 @@ async function handleApi(request, response, requestPath) {
     return true;
   }
   if (requestPath === '/api/profile/xp' && request.method === 'POST') {
-    if (!user) { sendJson(response, 401, { error: 'Oturum gerekli.' }); return true; }
-    const gainedXp = Math.max(0, Math.min(10000, Number(body.xp) || 0));
+    if (!user) {
+      const gainedXp = Math.max(0, Math.min(25000, Number(body.xp) || 0));
+      const coinsEarned = Math.max(0, Number(body.coins ?? body.gold) || 0);
+      sendJson(response, 200, { ok: true, isGuest: true, gainedXp, coinsEarned });
+      return true;
+    }
+    const gainedXp = Math.max(0, Math.min(25000, Number(body.xp) || 0));
     const previousRank = rankInfo(user.xp || 0).rankId;
     user.xp = (user.xp || 0) + gainedXp;
     user.kills = (user.kills || 0) + Math.max(0, Number(body.kills) || 0);
@@ -359,28 +484,81 @@ async function handleApi(request, response, requestPath) {
     user.timePlayed = (user.timePlayed || 0) + Math.max(0, Number(body.timePlayed) || 0);
     user.score = Math.max(user.score || 0, Number(body.score) || 0);
     user.bestScore = Math.max(user.bestScore || 0, user.score, Number(body.score) || 0);
-    const coinAmt = Math.max(0, Number(body.coins ?? body.gold) || 0);
-    user.coins = Math.max(user.coins || 0, coinAmt);
-    user.gold = Math.max(user.gold || 0, coinAmt);
+    const coinsEarned = Math.max(0, Number(body.coins ?? body.gold) || 0);
+    user.coins = (user.coins || 0) + coinsEarned;
+    user.gold = user.coins;
     const currentRank = rankInfo(user.xp);
     user.rankId = currentRank.rankId;
     
-    // Also record in persistent leaderboard
-    recordDeathScore(user.username, user.score, user.gold, user.kills, user.timePlayed, user);
+    recordDeathScore(user.username, user.score, user.coins, user.kills, user.timePlayed, user);
+    saveAccountData(true);
     
     sendJson(response, 200, {
       ...profileResponse(user),
       newXp: user.xp,
       rankUp: currentRank.rankId > previousRank,
-      newRankName: currentRank.name
+      newRankName: currentRank.name,
+      newRankIcon: currentRank.icon
     });
     return true;
   }
-  if (requestPath === '/api/shop/owned' && request.method === 'GET') { if (!user) sendJson(response, 401, { error: 'Oturum gerekli.' }); else sendJson(response, 200, publicUser(user)); return true; }
-  if (requestPath === '/api/shop/sync' && request.method === 'POST') { if (!user) sendJson(response, 401, { error: 'Oturum gerekli.' }); else { user.ownedItems = Array.isArray(body.ownedItems) ? [...new Set(body.ownedItems)] : user.ownedItems; user.equippedItems = body.equippedItems && typeof body.equippedItems === 'object' ? body.equippedItems : user.equippedItems; user.coins = Math.max(0, Number(body.coins) || 0); saveAccountData(); sendJson(response, 200, publicUser(user)); } return true; }
-  if (requestPath === '/api/shop/equip' && request.method === 'PUT') { if (!user) sendJson(response, 401, { error: 'Oturum gerekli.' }); else { user.equippedItems = { ...user.equippedItems, [String(body.category || '')]: String(body.itemId || '') }; saveAccountData(); sendJson(response, 200, { equippedItems: user.equippedItems }); } return true; }
-  if (requestPath === '/api/shop/buy' && request.method === 'POST') { if (!user) sendJson(response, 401, { error: 'Oturum gerekli.' }); else { const itemId = String(body.itemId || ''); const cost = Math.max(0, Number(body.cost) || 0); if (!itemId || user.coins < cost) sendJson(response, 400, { error: 'Yetersiz altın.' }); else { user.coins -= cost; user.ownedItems = [...new Set([...(user.ownedItems || []), itemId])]; saveAccountData(); sendJson(response, 200, { newCoins: user.coins, ownedItems: user.ownedItems }); } } return true; }
-  sendJson(response, 404, { error: 'API endpoint bulunamadı.' }); return true;
+  if (requestPath === '/api/shop/owned' && request.method === 'GET') {
+    if (!user) sendJson(response, 401, { error: 'Oturum gerekli.' });
+    else sendJson(response, 200, publicUser(user));
+    return true;
+  }
+  if (requestPath === '/api/shop/sync' && request.method === 'POST') {
+    if (!user) sendJson(response, 401, { error: 'Oturum gereklidir.' });
+    else {
+      if (Array.isArray(body.ownedItems)) {
+        user.ownedItems = [...new Set([...(user.ownedItems || []), ...body.ownedItems])];
+      }
+      if (body.equippedItems && typeof body.equippedItems === 'object') {
+        user.equippedItems = { ...user.equippedItems, ...body.equippedItems };
+      }
+      if (typeof body.coins === 'number' && body.coins >= 0) {
+        user.coins = Math.max(user.coins || 0, body.coins);
+        user.gold = user.coins;
+      }
+      saveAccountData(true);
+      sendJson(response, 200, publicUser(user));
+    }
+    return true;
+  }
+  if (requestPath === '/api/shop/equip' && request.method === 'PUT') {
+    if (!user) sendJson(response, 401, { error: 'Oturum gereklidir.' });
+    else {
+      const cat = String(body.category || '');
+      const item = String(body.itemId || '');
+      if (cat) {
+        user.equippedItems = { ...(user.equippedItems || {}), [cat]: item };
+        saveAccountData(true);
+      }
+      sendJson(response, 200, { success: true, equippedItems: user.equippedItems });
+    }
+    return true;
+  }
+  if (requestPath === '/api/shop/buy' && request.method === 'POST') {
+    if (!user) sendJson(response, 401, { error: 'Oturum gereklidir.' });
+    else {
+      const itemId = String(body.itemId || '');
+      const cost = Math.max(0, Number(body.cost) || 0);
+      if (!itemId) {
+        sendJson(response, 400, { error: 'Geçersiz eşya.' });
+      } else if ((user.coins || 0) < cost) {
+        sendJson(response, 400, { error: 'Yetersiz altın.' });
+      } else {
+        user.coins = (user.coins || 0) - cost;
+        user.gold = user.coins;
+        user.ownedItems = [...new Set([...(user.ownedItems || []), itemId])];
+        saveAccountData(true);
+        sendJson(response, 200, { success: true, newCoins: user.coins, ownedItems: user.ownedItems });
+      }
+    }
+    return true;
+  }
+  sendJson(response, 404, { error: 'API endpoint bulunamadı.' });
+  return true;
 }
 
 const mime = {
@@ -581,6 +759,61 @@ function ensureMobs() {
   while (mobs.size < MAX_MOBS) createMob();
 }
 
+function publicAirdrop(ad) {
+  return {
+    id: ad.id,
+    x: ad.x,
+    y: ad.y,
+    hp: ad.hp,
+    maxHp: ad.maxHp,
+    gold: ad.gold,
+    tier: ad.tier || 1,
+    spawnedAt: ad.spawnedAt
+  };
+}
+
+function spawnAirdrop() {
+  if (airdrops.size >= 4) return;
+  const x = Math.round((Math.random() * 2 - 1) * 3200);
+  const y = Math.round((Math.random() * 2 - 1) * 3200);
+  const tier = Math.random() < 0.3 ? 2 : 1;
+  const gold = tier === 2 ? (350 + Math.floor(Math.random() * 250)) : (180 + Math.floor(Math.random() * 150));
+  const hp = tier === 2 ? 500 : 300;
+  const ad = {
+    id: `airdrop-${nextAirdropId++}`,
+    x, y, hp, maxHp: hp, gold, tier,
+    spawnedAt: Date.now()
+  };
+  airdrops.set(ad.id, ad);
+  io.emit('airdrop_spawn', publicAirdrop(ad));
+}
+
+function updateBounty() {
+  if (players.size === 0) {
+    if (currentBountyId) { currentBountyId = null; io.emit('bounty_update', { id: null }); }
+    return;
+  }
+  let best = null;
+  for (const [id, p] of players) {
+    if ((p.hp ?? 0) <= 0) continue;
+    const g = Number(p.gold ?? 0);
+    const s = Number(p.score ?? 0);
+    const val = g * 2 + s;
+    if (!best || val > best.val) {
+      best = { id, p, val, g };
+    }
+  }
+  if (best && best.g >= 30) {
+    if (currentBountyId !== best.id) {
+      currentBountyId = best.id;
+      io.emit('bounty_update', { id: best.id, name: best.p.name || 'Oyuncu', gold: best.g, bonus: 300 });
+    }
+  } else if (currentBountyId) {
+    currentBountyId = null;
+    io.emit('bounty_update', { id: null });
+  }
+}
+
 function deletePlayerBuildings(playerId) {
   if (!playerId) return;
   const deletedIds = [];
@@ -778,9 +1011,10 @@ setInterval(() => {
 
 setInterval(broadcastMobIds, 2000);
 
-// Realtime leaderboard update every 2s — sorted by current gold descending
+// Realtime leaderboard & bounty updates every 2s
 setInterval(() => {
   if (players.size === 0) return;
+  updateBounty();
   const list = [...players.values()]
     .map(p => ({
       id: p.id,
@@ -793,6 +1027,14 @@ setInterval(() => {
     .slice(0, 10);
   io.emit('live_lb', list);
 }, 2000);
+
+// Periodic Airdrop Treasure Chest event (every ~60-90s)
+setInterval(() => {
+  if (players.size > 0 && (Date.now() - lastAirdropSpawn > 75000 || airdrops.size === 0)) {
+    lastAirdropSpawn = Date.now();
+    spawnAirdrop();
+  }
+}, 30000);
 
 // Auto-cleanup ONLY when socket is disconnected or player is dead.
 // Never delete buildings or kick when player simply switches tabs!
@@ -816,8 +1058,28 @@ setInterval(() => {
 io.on('connection', (socket) => {
   socket.emit('online_count', io.engine.clientsCount);
   socket.on('join', (data = {}) => {
+    const authUser = verifyToken(data.token);
+    socket.data.authUser = authUser || null;
+    const playerName = authUser ? authUser.username : (String(data.name || 'Oyuncu').trim().slice(0, 20) || 'Oyuncu');
+    const playerRankId = authUser ? rankInfo(authUser.xp || 0).rankId : Math.max(0, Math.min(11, Number(data.rankId || data.rk || 0)));
     const initialScore = Number(data.score ?? data.sc ?? 0) || 0;
-    const state = { ...data, name: data.name || 'Oyuncu', hp: data.hp ?? 250, maxHp: data.maxHp ?? 250, score: initialScore, sc: initialScore, id: socket.id, clanId: '', clanTag: '', wood: 50, stone: 30, apples: 5 };
+    const state = {
+      ...data,
+      name: playerName,
+      rk: playerRankId,
+      rankId: playerRankId,
+      hp: data.hp ?? 250,
+      maxHp: data.maxHp ?? 250,
+      score: initialScore,
+      sc: initialScore,
+      id: socket.id,
+      clanId: '',
+      clanTag: '',
+      wood: 50,
+      stone: 30,
+      apples: 5,
+      _authUser: authUser
+    };
     const requestedClan = clans.get(String(data.clanId || ''));
     const clanMember = requestedClan?.members?.find(member => member.name === state.name);
     if (requestedClan && clanMember) {
@@ -830,10 +1092,21 @@ io.on('connection', (socket) => {
     players.set(socket.id, state);
     ensureMobs(state.x || 0, state.y || 0);
     const others = Object.fromEntries([...players].filter(([id]) => id !== socket.id).map(([id, player]) => [id, compactState(player)]));
-    socket.emit('welcome', { id: socket.id, players: others, buildings: Object.fromEntries(buildings), worldSeed, resHp: {}, mobs: [...mobs.values()].map(publicMob), isHost: players.size === 1 });
+    socket.emit('welcome', {
+      id: socket.id,
+      players: others,
+      buildings: Object.fromEntries(buildings),
+      worldSeed,
+      resHp: {},
+      mobs: [...mobs.values()].map(publicMob),
+      airdrops: [...airdrops.values()].map(publicAirdrop),
+      bountyId: currentBountyId,
+      isHost: players.size === 1
+    });
     socket.emit('mob_ids', [...mobs.keys()]);
     socket.broadcast.emit('player_join', { id: socket.id, state: compactState(state) });
     broadcastOnlineCount();
+    updateBounty();
   });
 
   socket.on('respawn', () => {
@@ -954,6 +1227,15 @@ io.on('connection', (socket) => {
         target.kills = target.kills || 0;
         attacker.kills = (attacker.kills || 0) + 1;
         attacker.score = (attacker.score || 0) + 150;
+        if (currentBountyId && targetId === currentBountyId) {
+          const bountyBonus = 300;
+          attacker.gold = (attacker.gold || 0) + bountyBonus;
+          attacker.score = (attacker.score || 0) + bountyBonus;
+          socket.emit('bounty_kill_reward', { name: target.name || 'Oyuncu', bonus: bountyBonus });
+          io.emit('bounty_killed_broadcast', { killer: attacker.name || 'Oyuncu', victim: target.name || 'Oyuncu', bonus: bountyBonus });
+          currentBountyId = null;
+          io.emit('bounty_update', { id: null });
+        }
         io.to(targetId).emit('pvp_killed', { byName: attacker.name || 'Oyuncu' });
         io.emit('player_dead', { id: targetId });
         socket.emit('pvp_kill_confirm', { targetId, targetName: target.name || 'Oyuncu' });
@@ -980,6 +1262,15 @@ io.on('connection', (socket) => {
       target.kills = target.kills || 0;
       attacker.kills = (attacker.kills || 0) + 1;
       attacker.score = (attacker.score || 0) + 150;
+      if (currentBountyId && data.targetId === currentBountyId) {
+        const bountyBonus = 300;
+        attacker.gold = (attacker.gold || 0) + bountyBonus;
+        attacker.score = (attacker.score || 0) + bountyBonus;
+        socket.emit('bounty_kill_reward', { name: target.name || 'Oyuncu', bonus: bountyBonus });
+        io.emit('bounty_killed_broadcast', { killer: attacker.name || 'Oyuncu', victim: target.name || 'Oyuncu', bonus: bountyBonus });
+        currentBountyId = null;
+        io.emit('bounty_update', { id: null });
+      }
       io.to(data.targetId).emit('pvp_killed', { byName: attacker.name || 'Oyuncu' });
       io.emit('player_dead', { id: data.targetId });
       socket.emit('pvp_kill_confirm', { targetId: data.targetId, targetName: target.name || 'Oyuncu' });
@@ -1004,11 +1295,45 @@ io.on('connection', (socket) => {
       target.kills = target.kills || 0;
       owner.kills = (owner.kills || 0) + 1;
       owner.score = (owner.score || 0) + 150;
+      if (currentBountyId && data.targetId === currentBountyId) {
+        const bountyBonus = 300;
+        owner.gold = (owner.gold || 0) + bountyBonus;
+        owner.score = (owner.score || 0) + bountyBonus;
+        socket.emit('bounty_kill_reward', { name: target.name || 'Oyuncu', bonus: bountyBonus });
+        io.emit('bounty_killed_broadcast', { killer: owner.name || 'Diken', victim: target.name || 'Oyuncu', bonus: bountyBonus });
+        currentBountyId = null;
+        io.emit('bounty_update', { id: null });
+      }
       io.to(data.targetId).emit('pvp_killed', { byName: owner.name || 'Diken' });
       io.emit('player_dead', { id: data.targetId });
       socket.emit('pvp_kill_confirm', { targetId: data.targetId, targetName: target.name || 'Oyuncu' });
       io.emit('pvp_kill_feed', { killer: owner.name || 'Diken', victim: target.name || 'Oyuncu', streak: owner.kills });
       persistPlayerScore(owner);
+    }
+  });
+
+  socket.on('airdrop_hit', (data = {}) => {
+    const ad = airdrops.get(String(data.id || ''));
+    if (!ad || ad.hp <= 0) return;
+    const player = players.get(socket.id);
+    if (!player || player.hp <= 0) return;
+    const dmg = Math.max(1, Math.min(100, Number(data.dmg) || 25));
+    ad.hp = Math.max(0, ad.hp - dmg);
+    io.emit('airdrop_hit_state', { id: ad.id, hp: ad.hp, maxHp: ad.maxHp });
+    if (ad.hp <= 0) {
+      airdrops.delete(ad.id);
+      player.gold = (player.gold || 0) + ad.gold;
+      player.score = (player.score || 0) + ad.gold;
+      io.emit('airdrop_opened', {
+        id: ad.id,
+        x: ad.x,
+        y: ad.y,
+        openerId: socket.id,
+        openerName: player.name || 'Oyuncu',
+        gold: ad.gold,
+        tier: ad.tier
+      });
+      persistPlayerScore(player);
     }
   });
 
@@ -1301,6 +1626,9 @@ io.on('connection', (socket) => {
     for (const key of mobHitCooldowns.keys()) if (key.startsWith(`${socket.id}:`)) mobHitCooldowns.delete(key);
     deletePlayerBuildings(socket.id);
     const player = players.get(socket.id);
+    if (player && (player.score > 0 || player.gold > 0 || player.kills > 0)) {
+      persistPlayerScore(player);
+    }
     leaveClan(socket, false);
     players.delete(socket.id);
     for (const [code, party] of parties) {

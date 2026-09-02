@@ -2,6 +2,16 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9KY2XEKMWK"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-9KY2XEKMWK');
+    </script>
+    <meta name="google-site-verification" content="5HPW5h_jP5UFmpzrVQDBf94viuUajdObUgtm0JNoi5g">
+    <meta name="google-site-verification" content="google36f814981b2cabaa">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1454,12 +1464,16 @@
                     localStorage.setItem('fb_auth_token', _authToken);
                     localStorage.setItem('fb_auth_user', JSON.stringify(_authUser));
                     if (_authUser.coins != null) setPlayerGold(_authUser.coins);
+                    if (_authUser.ownedItems) localStorage.setItem('fb_acc_owned', JSON.stringify(_authUser.ownedItems));
+                    if (_authUser.equippedItems) localStorage.setItem('fb_acc_equipped', JSON.stringify(_authUser.equippedItems));
+                    if (typeof _authUser.xp === 'number') localStorage.setItem('fb_user_xp', String(_authUser.xp));
                     
                     document.getElementById('name-input').value = _authUser.username;
                     localStorage.setItem('fb_name', _authUser.username);
                     
                     closeAllModals();
                     checkAuthStatus();
+                    hydratePlayerProfileState(_authUser);
                     triggerToast(`Hoş geldin, ${_authUser.username}!`, 'fa-circle-check');
                     playSfx('buy');
                 } else {
@@ -1479,11 +1493,30 @@
                 return;
             }
 
+            const guestXp = parseInt(localStorage.getItem('fb_total_xp') || '0', 10);
+            const guestGold = getPlayerGold();
+            const guestKills = parseInt(localStorage.getItem('fb_total_kills') || '0', 10);
+            const guestScore = parseInt(localStorage.getItem('fb_best_score') || '0', 10);
+            const guestTime = parseInt(localStorage.getItem('fb_total_time') || '0', 10);
+            const guestOwned = getOwnedItems();
+            const guestEquipped = getEquippedItems();
+
             try {
                 const res = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: u, password: p, email: e })
+                    body: JSON.stringify({
+                        username: u,
+                        password: p,
+                        email: e,
+                        initialXp: guestXp,
+                        initialGold: Math.max(1800, guestGold + 300),
+                        initialKills: guestKills,
+                        initialScore: guestScore,
+                        initialTime: guestTime,
+                        initialOwnedItems: guestOwned,
+                        initialEquippedItems: guestEquipped
+                    })
                 });
                 const data = await res.json();
                 if (res.ok && data.token) {
@@ -1492,15 +1525,18 @@
                     localStorage.setItem('fb_auth_token', _authToken);
                     localStorage.setItem('fb_auth_user', JSON.stringify(_authUser));
                     
-                    const newGold = Math.max(1800, (data.user?.coins || 1500));
-                    setPlayerGold(newGold);
+                    if (_authUser.coins != null) setPlayerGold(_authUser.coins);
+                    if (_authUser.ownedItems) localStorage.setItem('fb_acc_owned', JSON.stringify(_authUser.ownedItems));
+                    if (_authUser.equippedItems) localStorage.setItem('fb_acc_equipped', JSON.stringify(_authUser.equippedItems));
+                    if (typeof _authUser.xp === 'number') localStorage.setItem('fb_user_xp', String(_authUser.xp));
                     
                     document.getElementById('name-input').value = _authUser.username;
                     localStorage.setItem('fb_name', _authUser.username);
                     
                     closeAllModals();
                     checkAuthStatus();
-                    triggerToast(`Tebrikler! +300 🪙 Altın Hesabına Yüklendi!`, 'fa-sparkles');
+                    hydratePlayerProfileState(_authUser);
+                    triggerToast(`Tebrikler ${_authUser.username}! +300 🪙 Altın Hesabına Yüklendi!`, 'fa-sparkles');
                     playSfx('buy');
                 } else {
                     triggerToast(data.error || 'Kayıt başarısız.', 'fa-circle-xmark');

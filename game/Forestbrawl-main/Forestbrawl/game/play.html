@@ -2,6 +2,16 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9KY2XEKMWK"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-9KY2XEKMWK');
+</script>
+<meta name="google-site-verification" content="5HPW5h_jP5UFmpzrVQDBf94viuUajdObUgtm0JNoi5g">
+<meta name="google-site-verification" content="google36f814981b2cabaa">
 <script>
 // ULTRA-EARLY: Replit badge ve enjekte edilen her şeyi yok et — sayfa yüklenmeden önce
 (function(){
@@ -3854,6 +3864,7 @@ const _enemyLocalMap = new Map();
 let _mobIdArr = [];
 let loots = [];          // gold/item drops on ground
 let chests = [];         // treasure chests
+let airdropsList = [];   // server-synced loot airdrops & boss chests
 const CHEST_COLLECT_RADIUS = 46;
 const MAX_CHESTS = 3;
 let _nextChestSpawn = 2400 + Math.random() * 1200; // first chest ~40-60s
@@ -4295,8 +4306,8 @@ let _connected = false;
 // Bounty system
 let _bountyId = null; // socket ID of the current bounty target
 // ── Rank system (12 ranks with dynamic achievable progression) ──
-const _FB_RANK_EMOJIS = ['🌱','🪨','🪵','🗡️','⚔️','🛡️','🔥','💎','⚡','🌙','👑','✨'];
-const _FB_RANK_XP     = [0, 300, 800, 1600, 2800, 4500, 7000, 10500, 15000, 21000, 30000, 45000];
+const _FB_RANK_EMOJIS = ['🌱','🪨','🪵','🏹','⚔️','🛡️','🔥','💎','🌪️','🌙','👑','✨'];
+const _FB_RANK_XP     = [0, 500, 1500, 3500, 7000, 12000, 20000, 35000, 60000, 100000, 180000, 300000];
 function _fbRankByXP(xp){ let r=0; for(let i=0;i<_FB_RANK_XP.length;i++){if(xp>=_FB_RANK_XP[i])r=i;else break;} return r; }
 
 // ══════════════════════════════════════════════════════════════
@@ -6218,15 +6229,27 @@ function updateChests() {
   }
 }
 
+function spawnBuildingDebris(x, y, type) {
+  const isStone = type === 2 || type === 6 || type === 7;
+  const colors = isStone ? ['#999999', '#bbbbbb', '#777777', '#dddddd'] : ['#8b5a2b', '#cd853f', '#d2691e', '#deb887', '#f4a460'];
+  const count = _qualityLevel === 0 ? 3 : 6;
+  for (let i = 0; i < count; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 2.5 + Math.random() * 5.5;
+    const col = colors[Math.floor(Math.random() * colors.length)];
+    _spawnParticle(x + (Math.random() - 0.5) * 16, y + (Math.random() - 0.5) * 16, Math.cos(ang) * spd, Math.sin(ang) * spd - 1.2, 2 + Math.random() * 3, 16 + Math.random() * 12, col);
+  }
+}
+
 function drawChests() {
-  for (let _ci = 0; _ci < chests.length; _ci++) { const c = chests[_ci]; {
-    if (c.x < _renderCullL - 64 || c.x > _renderCullR + 64 ||
-        c.y < _renderCullT - 64 || c.y > _renderCullB + 64) continue;
+  // ── 1. Local Map Chests ──────────────────────────────
+  for (let _ci = 0; _ci < chests.length; _ci++) {
+    const c = chests[_ci];
+    if (c.x < _renderCullL - 64 || c.x > _renderCullR + 64 || c.y < _renderCullT - 64 || c.y > _renderCullB + 64) continue;
     const pulse = 0.85 + Math.sin(c.pulse * 2) * 0.15;
     const glowA = 0.45 + Math.sin(c.pulse * 2) * 0.45;
     ctx.save();
     ctx.translate(c.x, c.y);
-    // Outer glow
     if (_qualityLevel >= 1) {
       const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 44 * pulse);
       gr.addColorStop(0, `rgba(255,215,0,${glowA * 0.32})`);
@@ -6235,46 +6258,123 @@ function drawChests() {
       ctx.beginPath(); ctx.arc(0, 0, 44 * pulse, 0, Math.PI * 2); ctx.fill();
     }
     const sz = 20 * pulse;
-    // Chest body
     ctx.fillStyle = '#7B3F00'; ctx.strokeStyle = '#4a2000'; ctx.lineWidth = 2;
     ctx.fillRect(-sz, -sz * 0.55, sz * 2, sz * 1.2);
     ctx.strokeRect(-sz, -sz * 0.55, sz * 2, sz * 1.2);
-    // Lid (top half)
     ctx.fillStyle = '#9B5413';
     ctx.fillRect(-sz, -sz * 0.55, sz * 2, sz * 0.5);
     ctx.strokeRect(-sz, -sz * 0.55, sz * 2, sz * 0.5);
-    // Arch on lid
-    ctx.fillStyle = '#be7338';
-    ctx.beginPath();
-    ctx.ellipse(0, -sz * 0.55 + sz * 0.25, sz * 0.9, sz * 0.3, 0, Math.PI, 0);
-    ctx.fill();
-    // Gold band
     ctx.fillStyle = '#ffd700'; ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 1.5;
     ctx.fillRect(-sz, -sz * 0.05, sz * 2, sz * 0.14);
-    // Lock
     ctx.beginPath(); ctx.arc(0, sz * 0.02, sz * 0.2, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
-    // Sparkle dots around chest
-    if (_qualityLevel >= 1) {
-      const sp = globalTime * 0.07;
-      for (let i = 0; i < 5; i++) {
-        const ang = sp + i * (Math.PI * 2 / 5);
-        const d = 28 + Math.sin(sp * 3 + i) * 5;
-        const sx = Math.cos(ang) * d, sy = Math.sin(ang) * d;
-        const starA = 0.5 + Math.sin(sp * 2.5 + i * 1.3) * 0.5;
-        ctx.globalAlpha = starA * 0.85;
-        ctx.fillStyle = '#fff8a0';
-        ctx.beginPath(); ctx.arc(sx, sy, 2.5, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-    // "?" hint above chest
-    ctx.globalAlpha = 0.72;
-    ctx.fillStyle = '#ffd700';
-    ctx.font = `bold ${sz * 0.9}px Arial`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('!', 0, -sz * 1.15);
     ctx.restore();
-  }}
+  }
+
+  // ── 2. Server Airdrop & Treasure Chest Events ───────────
+  if (typeof airdropsList !== 'undefined' && airdropsList.length > 0) {
+    for (let _ai = 0; _ai < airdropsList.length; _ai++) {
+      const ad = airdropsList[_ai];
+      if (!ad || typeof ad.x !== 'number') continue;
+      if (ad.dropY === undefined) ad.dropY = 0;
+      if (ad.dropY < 0) { ad.dropY = Math.min(0, ad.dropY + 12); }
+      const curY = ad.y + ad.dropY;
+      if (ad.x < _renderCullL - 100 || ad.x > _renderCullR + 100 || curY < _renderCullT - 100 || curY > _renderCullB + 100) continue;
+      
+      ad.pulse = (ad.pulse || 0) + 0.05;
+      const isDiamond = ad.tier === 2;
+      const mainCol = isDiamond ? '#00e5ff' : '#ffd700';
+      const darkCol = isDiamond ? '#007799' : '#b8860b';
+      const bodyCol = isDiamond ? '#1a3344' : '#5c3317';
+      
+      let sX = 0, sY = 0;
+      if (ad.shake > 0) { sX = (Math.random() - 0.5) * ad.shake; sY = (Math.random() - 0.5) * ad.shake; ad.shake--; }
+      
+      // Sky light beam shining down
+      ctx.save();
+      ctx.translate(ad.x + sX, curY + sY);
+      
+      if (_qualityLevel >= 1 && ad.dropY >= 0) {
+        const bg = ctx.createLinearGradient(0, -350, 0, 0);
+        bg.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        bg.addColorStop(0.7, isDiamond ? 'rgba(0, 229, 255, 0.18)' : 'rgba(255, 215, 0, 0.18)');
+        bg.addColorStop(1, isDiamond ? 'rgba(0, 229, 255, 0.35)' : 'rgba(255, 215, 0, 0.35)');
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.moveTo(-16, -350); ctx.lineTo(16, -350); ctx.lineTo(44, 15); ctx.lineTo(-44, 15);
+        ctx.closePath(); ctx.fill();
+      }
+
+      // Parachute while falling from sky
+      if (ad.dropY < -10) {
+        ctx.save();
+        ctx.translate(0, -36);
+        ctx.fillStyle = isDiamond ? '#00bcd4' : '#e67e22';
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, -18, 38, Math.PI, 0);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-32, -18); ctx.lineTo(0, 30);
+        ctx.moveTo(32, -18); ctx.lineTo(0, 30);
+        ctx.moveTo(0, -18); ctx.lineTo(0, 30);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Hit wobble
+      if (ad.hitFlash > 0) {
+        ad.hitFlash--;
+        ctx.scale(1.12, 0.9);
+      }
+
+      // 3D Chest Base & Lid
+      const w = 34, h = 24;
+      ctx.fillStyle = bodyCol; ctx.strokeStyle = '#111'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.roundRect(-w, -h * 0.5, w * 2, h, 6); ctx.fill(); ctx.stroke();
+
+      // Metallic corner reinforcements
+      ctx.fillStyle = mainCol; ctx.strokeStyle = darkCol; ctx.lineWidth = 1.5;
+      ctx.fillRect(-w + 3, -h * 0.5 + 2, 7, h - 4);
+      ctx.strokeRect(-w + 3, -h * 0.5 + 2, 7, h - 4);
+      ctx.fillRect(w - 10, -h * 0.5 + 2, 7, h - 4);
+      ctx.strokeRect(w - 10, -h * 0.5 + 2, 7, h - 4);
+
+      // Center lock
+      ctx.fillStyle = mainCol;
+      ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+
+      // Sparkles around chest
+      if (_qualityLevel >= 1) {
+        const sp = ad.pulse * 1.5;
+        for (let i = 0; i < 4; i++) {
+          const ang = sp + i * (Math.PI / 2);
+          const r = 28 + Math.sin(sp * 2 + i) * 6;
+          ctx.fillStyle = isDiamond ? '#e0f7fa' : '#fff9c4';
+          ctx.beginPath();
+          ctx.arc(Math.cos(ang) * r, Math.sin(ang) * r - 4, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.restore();
+
+      // Health bar & Label
+      drawHpBar(ad.x, curY - 34, ad.hp, ad.maxHp, 58, 0);
+      ctx.save();
+      ctx.font = 'bold 12px Nunito,Arial,sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+      const tagText = isDiamond ? '💎 Elmas Sandık' : '📦 Hazine Sandığı';
+      ctx.strokeText(tagText, ad.x, curY - 40);
+      ctx.fillStyle = isDiamond ? '#80deea' : '#ffd54f';
+      ctx.fillText(tagText, ad.x, curY - 40);
+      ctx.restore();
+    }
+  }
 }
 
 // ============================================================
@@ -6544,10 +6644,10 @@ function checkHits() {
       b.lastHitSwingId = _swingId;
       const bDmg = Math.round(dmg * 0.6); // buildings tougher than enemies
       b.hp = Math.max(0, b.hp - bDmg);
-      b.shake = 8; b.hitTimer = 60;
-      spawnBlood(b.x, b.y, 3);
-      shake(3);
-      playSound(180 + Math.random() * 60, 0.08, 'square', 0.12);
+      b.shake = 8; b.hitTimer = 15;
+      spawnBuildingDebris(b.x, b.y, b.type);
+      shake(3.5);
+      playSound(180 + Math.random() * 60, 0.08, 'square', 0.16);
       floatingTexts.push({ x: b.x, y: b.y - 38, text: '-' + bDmg + ' 🪓', alpha: 1, life: 28, color: '#ffcc66' });
 
       // Tell server about damage to ANY building — server broadcasts to ALL players
@@ -6564,6 +6664,35 @@ function checkHits() {
         if (b.type === 10) { const _ci=_campfires.indexOf(b); if(_ci>=0){_campfires[_ci]=_campfires[_campfires.length-1];_campfires.pop();} }
         const _bIdx = buildings.indexOf(b);
         if (_bIdx >= 0) buildings.splice(_bIdx, 1);
+      }
+    }
+  }
+
+  // ── Airdrops / Treasure Chests Hit Check ────────────────────────
+  if (typeof airdropsList !== 'undefined' && airdropsList.length > 0) {
+    for (let _ai = airdropsList.length - 1; _ai >= 0; _ai--) {
+      const ad = airdropsList[_ai];
+      if (!ad || typeof ad.x !== 'number') continue;
+      const curY = ad.y + (ad.dropY || 0);
+      const adx = ad.x - player.x, ady = curY - player.y;
+      const adMaxDist = player.radius * 0.5 + hitRange + 40;
+      if (Math.abs(adx) > adMaxDist || Math.abs(ady) > adMaxDist) continue;
+      if (adx * adx + ady * ady > adMaxDist * adMaxDist) continue;
+      let diff = Math.abs(Math.atan2(ady, adx) - player.angle);
+      if (diff > Math.PI) diff = 2 * Math.PI - diff;
+      if (diff > spread) continue;
+
+      const aDmg = Math.round(dmg * 0.8);
+      ad.hp = Math.max(0, ad.hp - aDmg);
+      ad.hitFlash = 10;
+      ad.shake = 7;
+      spawnBuildingDebris(ad.x, curY, 2);
+      shake(4.0);
+      playSound(240 + Math.random() * 50, 0.09, 'square', 0.22);
+      floatingTexts.push({ x: ad.x, y: curY - 38, text: '-' + aDmg + ' ⚔️', alpha: 1, life: 25, color: '#ffd700', big: true });
+
+      if (_connected && _socket) {
+        _socket.emit('airdrop_hit', { id: ad.id, dmg: aDmg });
       }
     }
   }
@@ -7681,47 +7810,66 @@ function die() {
   // Add earned gold to shop balance
   const prevShopGold = parseInt(localStorage.getItem('fb_gold')||'1500',10);
   localStorage.setItem('fb_gold', prevShopGold + player.gold);
-  // ── Guest cumulative stat tracking (all players, not just logged-in) ─────────
-  // These power the guest profile tab in the lobby (XP bar, level, time, gold).
+  // ── Guest & User cumulative stat tracking ─────────
   const _dieAuthTok = localStorage.getItem('fb_auth_token') || '';
   const _dieTimePlayed = Math.floor(globalTime / 60); // seconds alive this session
-  const _xpEarnedGuest = player.kills * 50 + _dieTimePlayed * 2 + (score > 0 ? Math.floor(Math.log2(score + 1)) * 10 : 0);
-  localStorage.setItem('fb_total_xp',   parseInt(localStorage.getItem('fb_total_xp')||'0',10)   + Math.min(_xpEarnedGuest, 5000));
+  const _xpEarned = player.kills * 60 + _dieTimePlayed * 2 + (score > 0 ? Math.floor(Math.sqrt(score) * 8) : 0);
+  
+  localStorage.setItem('fb_total_xp',   parseInt(localStorage.getItem('fb_total_xp')||'0',10)   + Math.min(_xpEarned, 10000));
   localStorage.setItem('fb_total_time', parseInt(localStorage.getItem('fb_total_time')||'0',10) + _dieTimePlayed);
   localStorage.setItem('fb_total_gold', parseInt(localStorage.getItem('fb_total_gold')||'0',10) + player.gold);
-  if (_dieAuthTok) {
-    const _xpEarned = player.kills * 50 + Math.floor(globalTime / 60) * 2 + (score > 0 ? Math.floor(Math.log2(score + 1)) * 10 : 0);
-    fetch('/api/profile/xp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _dieAuthTok },
-      body: JSON.stringify({
-        xp: Math.min(_xpEarned, 5000),
-        kills: player.kills,
-        deaths: 1,
-        score,
-        timePlayed: _dieTimePlayed,
-        coins: player.gold,
-      }),
-    }).then(r => r.json()).then(d => {
-      if (d.newToken) { localStorage.setItem('fb_auth_token', d.newToken); }
-      if (d.rankId !== undefined) {
-        _myRankId = d.rankId;
-        const u = JSON.parse(localStorage.getItem('fb_auth_user') || '{}');
-        u.rankId = d.rankId; u.xp = d.newXp;
-        localStorage.setItem('fb_auth_user', JSON.stringify(u));
-      }
-      if (d.rankUp && d.newRankName) {
-        const statEl = document.getElementById('death-stats');
-        if (statEl) {
-          const rankUpBanner = document.createElement('div');
-          rankUpBanner.style.cssText = 'background:rgba(255,215,0,0.18);border:2px solid #ffd700;border-radius:10px;padding:8px 14px;margin:8px 0;font-size:15px;font-weight:800;color:#ffd700;text-align:center';
-          rankUpBanner.textContent = '🎉 RANK ATLADI! → ' + d.newRankName;
-          statEl.prepend(rankUpBanner);
-        }
-      }
-      _updateRankBarFromServer(d);
-    }).catch(() => {});
+  localStorage.setItem('fb_total_kills', parseInt(localStorage.getItem('fb_total_kills')||'0',10) + player.kills);
+  localStorage.setItem('fb_total_deaths', parseInt(localStorage.getItem('fb_total_deaths')||'0',10) + 1);
+  if (score > parseInt(localStorage.getItem('fb_best_score')||'0', 10)) {
+    localStorage.setItem('fb_best_score', score);
   }
+
+  fetch('/api/profile/xp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': _dieAuthTok ? ('Bearer ' + _dieAuthTok) : ''
+    },
+    body: JSON.stringify({
+      xp: Math.min(_xpEarned, 10000),
+      kills: player.kills,
+      deaths: 1,
+      score,
+      timePlayed: _dieTimePlayed,
+      coins: player.gold,
+      gold: player.gold
+    }),
+  }).then(r => {
+    if (r.status === 401) {
+      localStorage.removeItem('fb_auth_token');
+      localStorage.removeItem('fb_auth_user');
+      return null;
+    }
+    return r.json();
+  }).then(d => {
+    if (!d || d.isGuest) return;
+    if (d.newToken) { localStorage.setItem('fb_auth_token', d.newToken); }
+    if (d.user) {
+      localStorage.setItem('fb_auth_user', JSON.stringify(d.user));
+      if (d.user.coins != null) {
+        localStorage.setItem('fb_gold', d.user.coins);
+      }
+    }
+    if (d.rankId !== undefined) {
+      _myRankId = d.rankId;
+      localStorage.setItem('fb_user_rank', d.rankId);
+    }
+    if (d.rankUp && d.newRankName) {
+      const statEl = document.getElementById('death-stats');
+      if (statEl) {
+        const rankUpBanner = document.createElement('div');
+        rankUpBanner.style.cssText = 'background:rgba(255,215,0,0.18);border:2px solid #ffd700;border-radius:10px;padding:8px 14px;margin:8px 0;font-size:15px;font-weight:800;color:#ffd700;text-align:center';
+        rankUpBanner.textContent = '🎉 RANK ATLADI! → ' + (d.newRankIcon || '👑') + ' ' + d.newRankName;
+        statEl.prepend(rankUpBanner);
+      }
+    }
+    _updateRankBarFromServer(d);
+  }).catch(() => {});
 
   const isNew = score > prev;
   const timeStr = _fmtTime(globalTime);
@@ -8611,25 +8759,35 @@ function drawBuilding(b, ghost) {
   ctx.translate(b.x + sX, b.y + sY);
   if (ghost) {
     ctx.globalAlpha = 0.65;
-  } else if (typeof b.life === 'number' && b.life >= 0 && b.life < 24) {
-    // ── TAMING.IO / IO SIGNATURE ELASTIC POP-IN SPRING ANIMATION ──
-    const t = b.life / 24;
-    const spring = 1 + Math.sin(t * Math.PI * 2.2) * (1 - t) * 0.38;
-    const scale = Math.max(0.1, t < 0.2 ? (t / 0.2) * spring : spring);
-    ctx.scale(scale, scale);
+  } else {
+    if (typeof b.life === 'number' && b.life >= 0 && b.life < 24) {
+      // ── TAMING.IO / IO SIGNATURE ELASTIC POP-IN SPRING ANIMATION ──
+      const t = b.life / 24;
+      const spring = 1 + Math.sin(t * Math.PI * 2.2) * (1 - t) * 0.38;
+      const scale = Math.max(0.1, t < 0.2 ? (t / 0.2) * spring : spring);
+      ctx.scale(scale, scale);
 
-    // Expanding soft white placement shockwave ring
-    if (b.life < 18) {
-      const ringT = b.life / 18;
-      const alpha = (1 - ringT) * 0.6;
-      const radius = 18 + ringT * 60;
-      ctx.save();
-      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
-      ctx.lineWidth = 4 * (1 - ringT);
-      ctx.beginPath();
-      ctx.arc(0, 0, radius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      // Expanding soft white placement shockwave ring
+      if (b.life < 18) {
+        const ringT = b.life / 18;
+        const alpha = (1 - ringT) * 0.6;
+        const radius = 18 + ringT * 60;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.lineWidth = 4 * (1 - ringT);
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+    // ── VURUŞ ESNEMESİ (HIT WOBBLE DEFORMATION) ──
+    if (b.hitTimer > 0) {
+      b.hitTimer--;
+      const wobbleProgress = b.hitTimer / 15;
+      const wobbleX = 1 + Math.sin(b.hitTimer * 0.9) * 0.15 * wobbleProgress;
+      const wobbleY = 1 - Math.sin(b.hitTimer * 0.9) * 0.15 * wobbleProgress;
+      ctx.scale(wobbleX, wobbleY);
     }
   }
 
@@ -10081,7 +10239,10 @@ function _drawSpriteSpider(ctx, e, R, isMoving, state, animTimer, attackTimer, f
 
 // ── Main enemy draw entry point ───────────────────────────────
 function drawEnemy(e) {
-  if (!e || !(e.radius > 0)) return;
+  if (!e) return;
+  if (typeof e.x !== 'number' || isNaN(e.x)) e.x = Number(e._targetX) || 0;
+  if (typeof e.y !== 'number' || isNaN(e.y)) e.y = Number(e._targetY) || 0;
+  if (!(e.radius > 0) || isNaN(e.radius)) e.radius = 46;
   const flash = e.hitFlash > 0;
   const R = e.radius;
   const shape = e.shape || 'wolf';
@@ -11315,6 +11476,23 @@ function drawPlayer() {
       const a = (i / 8) * Math.PI * 2 + t * 0.3;
       ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * R, Math.sin(a) * R); ctx.stroke();
     }
+    ctx.restore();
+  }
+
+  // ── GOLD KING CROWN (Local Player Bounty Target) ──
+  if (typeof _bountyId !== 'undefined' && _bountyId && _bountyId === _mySocketId) {
+    const _nowMs = Date.now();
+    const _bc_y = -player.radius - 38 + Math.sin(_nowMs * 0.005) * 5;
+    ctx.save();
+    ctx.rotate(-player.angle);
+    ctx.font = '28px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 10;
+    ctx.strokeText('👑', 0, _bc_y);
+    ctx.fillText('👑', 0, _bc_y);
+    ctx.shadowBlur = 0;
     ctx.restore();
   }
 
@@ -13789,9 +13967,12 @@ function initMultiplayer() {
     }
   });
 
-  _socket.on('welcome', ({ id, players: others, buildings: remoteBuildings, worldSeed, resHp, mobs, isHost: serverIsHost, bountyId: welcomeBountyId }) => {
+  _socket.on('welcome', ({ id, players: others, buildings: remoteBuildings, worldSeed, resHp, mobs, isHost: serverIsHost, bountyId: welcomeBountyId, airdrops: welcomeAirdrops }) => {
     _mySocketId = id;
     if (welcomeBountyId !== undefined) _bountyId = welcomeBountyId;
+    if (welcomeAirdrops && Array.isArray(welcomeAirdrops)) {
+      airdropsList = welcomeAirdrops.map(ad => ({ ...ad, dropY: 0, beamAlpha: 1.0, pulse: 0, shake: 0, hitFlash: 0 }));
+    }
     Object.entries(others).forEach(([pid, s]) => {
       _otherPlayers.set(pid, {
         name: s.n || s.name || '?', skin: s.sk || s.skin || 'default',
@@ -14144,13 +14325,56 @@ function initMultiplayer() {
   // We killed the bounty target — extra reward
   _socket.on('bounty_kill_reward', ({ name, bonus }) => {
     player.score = (player.score || 0) + (bonus || 300);
-    player.gold += 50;
+    player.gold += (bonus || 300);
     updateUI();
-    floatingTexts.push({ x: player.x, y: player.y - 80, text: `🏆 HEDEF +${bonus}!`, alpha: 1, life: 80, color: '#ffd700', big: true });
-    showToast(`🏆 Hedef öldürdün: ${name}! +${bonus} puan!`, 4000, '#ffd700');
+    floatingTexts.push({ x: player.x, y: player.y - 80, text: `👑 KRAL AVI +${bonus || 300} 🪙!`, alpha: 1, life: 80, color: '#ffd700', big: true });
+    showToast(`🏆 Altın Kralı ${name}'ı öldürdün! +${bonus || 300} Altın kazandın!`, 4500, '#ffd700');
     playSound(880, 0.18, 'triangle', 0.35);
     setTimeout(() => playSound(1100, 0.15, 'triangle', 0.28), 150);
     setTimeout(() => playSound(1320, 0.14, 'triangle', 0.22), 300);
+  });
+
+  _socket.on('bounty_killed_broadcast', ({ killer, victim, bonus }) => {
+    showToast(`👑 ${killer}, Altın Kralı ${victim}'ı devirdi! (+${bonus || 300} 🪙)`, 5000, '#ffd700');
+    playSound(950, 0.25, 'triangle', 0.3);
+  });
+
+  _socket.on('airdrop_spawn', (ad) => {
+    if (!ad || !ad.id) return;
+    const existing = airdropsList.find(a => a.id === ad.id);
+    if (!existing) {
+      airdropsList.push({
+        ...ad,
+        dropY: -450,
+        beamAlpha: 1.0,
+        pulse: 0,
+        shake: 0,
+        hitFlash: 0
+      });
+      showToast(`📦 GİZEMLİ HAZİNE SANDIĞI DÜŞTÜ! (${ad.tier === 2 ? '💎 Elmas' : '🪙 Altın'})`, 5500, '#ffd700');
+      playSound(660, 0.2, 'triangle', 0.35);
+      setTimeout(() => playSound(880, 0.2, 'sine', 0.3), 150);
+    }
+  });
+
+  _socket.on('airdrop_hit_state', ({ id, hp, maxHp }) => {
+    const ad = airdropsList.find(a => a.id === id);
+    if (ad) {
+      ad.hp = hp;
+      ad.hitFlash = 10;
+      ad.shake = 6;
+      spawnBuildingDebris(ad.x, ad.y + (ad.dropY || 0), 2);
+    }
+  });
+
+  _socket.on('airdrop_opened', ({ id, x, y, openerName, openerId, gold, tier }) => {
+    const idx = airdropsList.findIndex(a => a.id === id);
+    if (idx !== -1) airdropsList.splice(idx, 1);
+    spawnGoldBurst(x, y);
+    spawnGoldBurst(x, y);
+    floatingTexts.push({ x, y: y - 40, text: `🎉 +${gold} 🪙 SANDIK AÇILDI!`, alpha: 1, life: 75, color: '#ffd700', big: true });
+    showToast(`📦 ${openerName} Hazine Sandığını açtı ve +${gold} Altın kazandı!`, 4500, '#ffd700');
+    playSound(1050, 0.22, 'triangle', 0.4);
   });
 
   // Another player placed a building  (server broadcasts "build" event)
@@ -15372,6 +15596,53 @@ drawMinimap = function() {
         mmCtx.lineWidth = 0.8;
         mmCtx.beginPath(); mmCtx.arc(sx, sy, 2.5, 0, Math.PI*2);
         mmCtx.fill(); mmCtx.stroke();
+      }
+    }
+  }
+
+  // ── Airdrop Sandıkları Minimapte ──
+  if (typeof airdropsList !== 'undefined' && airdropsList.length > 0) {
+    const pulse = Math.sin(Date.now() * 0.006);
+    for (let _ai = 0; _ai < airdropsList.length; _ai++) {
+      const ad = airdropsList[_ai];
+      if (!ad || typeof ad.x !== 'number') continue;
+      const ax = (ad.x + _off) * MM_SCALE, ay = ((ad.y + (ad.dropY || 0)) + _off) * MM_SCALE;
+      if (ax < 0 || ax > MM_SIZE || ay < 0 || ay > MM_SIZE) continue;
+      mmCtx.save();
+      mmCtx.translate(ax, ay);
+      // Pulsing ring
+      mmCtx.strokeStyle = ad.tier === 2 ? 'rgba(0, 229, 255, 0.85)' : 'rgba(255, 215, 0, 0.85)';
+      mmCtx.lineWidth = 1.5;
+      mmCtx.beginPath(); mmCtx.arc(0, 0, 5.5 + pulse * 2, 0, Math.PI * 2); mmCtx.stroke();
+      // Chest box
+      mmCtx.fillStyle = ad.tier === 2 ? '#00e5ff' : '#ffd700';
+      mmCtx.strokeStyle = '#000'; mmCtx.lineWidth = 1;
+      mmCtx.beginPath(); mmCtx.roundRect(-3.5, -3, 7, 6, 1.2); mmCtx.fill(); mmCtx.stroke();
+      mmCtx.restore();
+    }
+  }
+
+  // ── Altın Kralı 👑 Taç İkonu Minimapte ──
+  if (typeof _bountyId !== 'undefined' && _bountyId) {
+    let kingX = null, kingY = null;
+    if (_bountyId === _mySocketId) {
+      kingX = player.x; kingY = player.y;
+    } else {
+      const kp = _otherPlayers.get(_bountyId);
+      if (kp && typeof kp.x === 'number') { kingX = kp.x; kingY = kp.y; }
+    }
+    if (kingX !== null) {
+      const kx = (kingX + _off) * MM_SCALE, ky = (kingY + _off) * MM_SCALE;
+      if (kx >= 0 && kx <= MM_SIZE && ky >= 0 && ky <= MM_SIZE) {
+        const pulse = 1 + Math.sin(Date.now() * 0.008) * 0.2;
+        mmCtx.save();
+        mmCtx.font = `${Math.round(12 * pulse)}px serif`;
+        mmCtx.textAlign = 'center';
+        mmCtx.textBaseline = 'middle';
+        mmCtx.shadowColor = '#ffd700';
+        mmCtx.shadowBlur = 5;
+        mmCtx.fillText('👑', kx, ky);
+        mmCtx.restore();
       }
     }
   }
