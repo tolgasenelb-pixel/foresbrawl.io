@@ -4293,6 +4293,7 @@ let _mySocketId = null;
 let _connected = false;
 
 // Bounty system
+let _bountyId = null; // socket ID of the current bounty target
 // ── Rank system (12 ranks with dynamic achievable progression) ──
 const _FB_RANK_EMOJIS = ['🌱','🪨','🪵','🗡️','⚔️','🛡️','🔥','💎','⚡','🌙','👑','✨'];
 const _FB_RANK_XP     = [0, 300, 800, 1600, 2800, 4500, 7000, 10500, 15000, 21000, 30000, 45000];
@@ -11785,6 +11786,8 @@ function update(timestamp = 0) {
   _nowMs = Date.now();
   const now = _nowMs;
   globalTime++;
+  _pendingNameTags.length = 0;
+  _ntPoolIdx = 0;
   // ── Frame-level shadow flags (cheaper to compare once than on each draw call) ──
   _shadowOk = _qualityLevel >= 1;
   _glowOk   = _qualityLevel >= 2;
@@ -12818,7 +12821,8 @@ function update(timestamp = 0) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   ctx.save();
-  ctx.translate(canvas.width / 2 + shakeX, canvas.height / 2 + shakeY);
+  try {
+    ctx.translate(canvas.width / 2 + shakeX, canvas.height / 2 + shakeY);
   ctx.scale(ZOOM, ZOOM);
   ctx.translate(-canvas.width / 2, -canvas.height / 2);
   ctx.translate(-camX, -camY);
@@ -13352,25 +13356,28 @@ function update(timestamp = 0) {
     ctx.fillText(ft.text, ft.x, ft.y);
     if (_qualityLevel >= 2) ctx.shadowBlur = 0;
   }
-  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-
-  ctx.restore();
+  } finally {
+    ctx.restore();
+  }
 
   // ── Deferred name tags — screen-space pass (always on top, pixel-crisp, no ZOOM scaling) ──
   if (_pendingNameTags.length > 0) {
     ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.imageSmoothingEnabled = false;
-    const _cw2 = canvas.width / 2, _ch2 = canvas.height / 2;
-    for (const _nt of _pendingNameTags) {
-      const _sx = _cw2 + shakeX + ZOOM * (_nt.wx - camX - _cw2);
-      const _sy = _ch2 + shakeY + ZOOM * (_nt.wy - camY - _ch2);
-      // PERF: cached OC — 120 path/text ops per 10 players → 10 drawImage calls
-      _drawNameTagCached(ctx, _sx, _sy, _nt.name, _nt.rankId, _nt.hpRatio, _nt.isOwn, globalTime);
+    try {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      const _cw2 = canvas.width / 2, _ch2 = canvas.height / 2;
+      for (const _nt of _pendingNameTags) {
+        const _sx = _cw2 + shakeX + ZOOM * (_nt.wx - camX - _cw2);
+        const _sy = _ch2 + shakeY + ZOOM * (_nt.wy - camY - _ch2);
+        // PERF: cached OC — 120 path/text ops per 10 players → 10 drawImage calls
+        _drawNameTagCached(ctx, _sx, _sy, _nt.name, _nt.rankId, _nt.hpRatio, _nt.isOwn, globalTime);
+      }
+    } finally {
+      ctx.restore();
+      _pendingNameTags.length = 0;
+      _ntPoolIdx = 0; // reset pool index — pool objects are reused next frame
     }
-    ctx.restore();
-    _pendingNameTags.length = 0;
-    _ntPoolIdx = 0; // reset pool index — pool objects are reused next frame
   }
 
   // Screen-space post-process layers
@@ -13747,6 +13754,7 @@ function initMultiplayer() {
     _socket.emit('ping_req', Date.now());
     const _initAxeTier = (playerAcc && playerAcc.baltalar && playerAcc.baltalar.startsWith('ba_tier_')) ? Math.max(_wepTier(_axeXP), parseInt(playerAcc.baltalar.replace('ba_tier_', '')) || 0) : _wepTier(_axeXP);
     const _initSwordTier = (playerAcc && playerAcc.kiliclar && playerAcc.kiliclar.startsWith('ki_tier_')) ? Math.max(_wepTier(_swordXP), parseInt(playerAcc.kiliclar.replace('ki_tier_', '')) || 0) : _wepTier(_swordXP);
+    const _authTok = localStorage.getItem('fb_auth_token') || '';
     _socket.emit('join', {
       name: player.name, skin: _playerSkin, color: playerColor,
       axeTier: _initAxeTier, swordTier: _initSwordTier,
@@ -15030,248 +15038,244 @@ function drawOtherPlayers() {
 
     // ── Block 1: rotated body + accessories ─────────────────────────────────
     ctx.save();
-    ctx.translate(p.x, p.y);
+    try {
+      ctx.translate(p.x, p.y);
 
-    // Ground shadow — PERF: use cached gradient (fixed params, no need to recreate each frame)
-    if (!drawOtherPlayers._shadowGrd) {
-      const _g = ctx.createRadialGradient(5, 17, 0, 3, 14, 30);
-      _g.addColorStop(0, 'rgba(0,0,0,0.28)'); _g.addColorStop(1, 'rgba(0,0,0,0)');
-      drawOtherPlayers._shadowGrd = _g;
-    }
-    ctx.fillStyle = drawOtherPlayers._shadowGrd;
-    ctx.beginPath(); ctx.ellipse(4, 17, 31, 10, 0, 0, Math.PI*2); ctx.fill();
-
-    ctx.rotate(p.angle);
-
-    // ── Accessories drawn BEFORE body (behind body) ──────────────────────
-    if (pAcc.a === 'a_halo')     drawPlayerHalo(ctx, globalTime, 35);
-    if (pAcc.a === 'a_cape')     drawPlayerCape(ctx, globalTime, 35);
-    if (pAcc.a === 'a_tail')     drawPlayerTail(ctx, globalTime, 35);
-    if (pAcc.k && pAcc.k !== 'w_none') {
-      drawPlayerWings(ctx, pAcc.k, globalTime);
-    }
-    if (pAcc.a === 'a_backpack') drawPlayerBackpack(ctx, 35);
-
-    // ── Weapon + arms — identical style to local player ──────────────────
-    {
-      let swAng = 0;
-      if (p.isAttacking) {
-        if (p.weapon >= 3) swAng = Math.sin(globalTime * 0.22) * 0.2;
-        else               swAng = Math.sin(globalTime * 0.18) * (Math.PI / 1.8);
+      // Ground shadow — PERF: use cached gradient (fixed params, no need to recreate each frame)
+      if (!drawOtherPlayers._shadowGrd) {
+        const _g = ctx.createRadialGradient(5, 17, 0, 3, 14, 30);
+        _g.addColorStop(0, 'rgba(0,0,0,0.28)'); _g.addColorStop(1, 'rgba(0,0,0,0)');
+        drawOtherPlayers._shadowGrd = _g;
       }
-      ctx.save(); ctx.rotate(swAng);
+      ctx.fillStyle = drawOtherPlayers._shadowGrd;
+      ctx.beginPath(); ctx.ellipse(4, 17, 31, 10, 0, 0, Math.PI*2); ctx.fill();
 
-      // Weapon (only for axe/sword, not building items)
-      if (p.weapon === 1 || p.weapon === 2) {
-        if (p.isAttacking && _qualityLevel >= 2) { ctx.shadowColor = p.weapon === 2 ? '#88ccff' : '#ffdd44'; ctx.shadowBlur = 16; }
-        const _otherWeaponKind = p.weapon === 1 ? 'axe' : 'sword';
-        const _otherWeaponTier = p.weapon === 1 ? (p.axeTier ?? 0) : (p.swordTier ?? 0);
-        const _otherWeaponImage = _weaponSprite(_otherWeaponKind, _otherWeaponTier);
-        if (_otherWeaponImage) _drawWeaponSprite(ctx, _otherWeaponImage, _otherWeaponKind);
-        else if (p.weapon === 1) drawAxeByTier(ctx, _otherWeaponTier, globalTime);
-        else drawSwordByTier(ctx, _otherWeaponTier, globalTime);
-        ctx.shadowBlur = 0;
+      ctx.rotate(p.angle);
+
+      // ── Accessories drawn BEFORE body (behind body) ──────────────────────
+      if (pAcc.a === 'a_halo')     drawPlayerHalo(ctx, globalTime, 35);
+      if (pAcc.a === 'a_cape')     drawPlayerCape(ctx, globalTime, 35);
+      if (pAcc.a === 'a_tail')     drawPlayerTail(ctx, globalTime, 35);
+      if (pAcc.k && pAcc.k !== 'w_none') {
+        drawPlayerWings(ctx, pAcc.k, globalTime);
       }
+      if (pAcc.a === 'a_backpack') drawPlayerBackpack(ctx, 35);
 
-      // Arms — same two-ellipse style for ALL weapon modes (weapon + building)
-      // PERF: always flat colour — no createRadialGradient per arm per player per frame.
-      // Gradient arms for remote players are invisible during gameplay; saves 2N gradient
-      // object allocations + 6N stroke calls per frame (N = other player count).
-      const armCol = SKIN_ARM_COLORS[p.skin] || '#c4966a';
-      for (let _pai = 0; _pai < 2; _pai++) {
-        const ay = _pai === 0 ? -13 : 20, sign = _pai === 0 ? -1 : 1;
-        ctx.save(); ctx.translate(30, ay);
-        ctx.fillStyle = armCol;
-        ctx.strokeStyle = '#000'; ctx.lineWidth = 4.5;
-        ctx.beginPath(); ctx.ellipse(6,0,18,13,0.18*sign,0,Math.PI*2); ctx.fill(); ctx.stroke();
-        if (_qualityLevel >= 1) {
-          ctx.fillStyle = 'rgba(255,255,255,0.22)';
-          ctx.beginPath(); ctx.ellipse(2,-3*sign,7,4,0.2*sign,0,Math.PI*2); ctx.fill();
+      // ── Weapon + arms — identical style to local player ──────────────────
+      {
+        let swAng = 0;
+        if (p.isAttacking) {
+          if (p.weapon >= 3) swAng = Math.sin(globalTime * 0.22) * 0.2;
+          else               swAng = Math.sin(globalTime * 0.18) * (Math.PI / 1.8);
         }
+        ctx.save(); ctx.rotate(swAng);
+
+        // Weapon (only for axe/sword, not building items)
+        if (p.weapon === 1 || p.weapon === 2) {
+          if (p.isAttacking && _qualityLevel >= 2) { ctx.shadowColor = p.weapon === 2 ? '#88ccff' : '#ffdd44'; ctx.shadowBlur = 16; }
+          const _otherWeaponKind = p.weapon === 1 ? 'axe' : 'sword';
+          const _otherWeaponTier = p.weapon === 1 ? (p.axeTier ?? 0) : (p.swordTier ?? 0);
+          const _otherWeaponImage = _weaponSprite(_otherWeaponKind, _otherWeaponTier);
+          if (_otherWeaponImage) _drawWeaponSprite(ctx, _otherWeaponImage, _otherWeaponKind);
+          else if (p.weapon === 1) drawAxeByTier(ctx, _otherWeaponTier, globalTime);
+          else drawSwordByTier(ctx, _otherWeaponTier, globalTime);
+          ctx.shadowBlur = 0;
+        }
+
+        // Arms — same two-ellipse style for ALL weapon modes (weapon + building)
+        const armCol = SKIN_ARM_COLORS[p.skin] || '#c4966a';
+        for (let _pai = 0; _pai < 2; _pai++) {
+          const ay = _pai === 0 ? -13 : 20, sign = _pai === 0 ? -1 : 1;
+          ctx.save(); ctx.translate(30, ay);
+          ctx.fillStyle = armCol;
+          ctx.strokeStyle = '#000'; ctx.lineWidth = 4.5;
+          ctx.beginPath(); ctx.ellipse(6,0,18,13,0.18*sign,0,Math.PI*2); ctx.fill(); ctx.stroke();
+          if (_qualityLevel >= 1) {
+            ctx.fillStyle = 'rgba(255,255,255,0.22)';
+            ctx.beginPath(); ctx.ellipse(2,-3*sign,7,4,0.2*sign,0,Math.PI*2); ctx.fill();
+          }
+          ctx.restore();
+        }
+        ctx.restore(); // undo swAng
+      }
+
+      // ── Body — PERF: shared OC cache per (skin+flash). All players w/ same skin share one OC.
+      {
+        const _otherPlayerImage = !fl ? _playerSprite(p.skin || 'default') : null;
+        if (_otherPlayerImage) {
+          _drawCenteredSprite(ctx, _otherPlayerImage, 35 * 3.6);
+        } else {
+          const _obsk = (p.skin || 'default') + (fl ? '_fl' : '_nfl');
+          let _obEnt = _BODY_OC_CACHE.get(_obsk);
+          const _obTTL = _qualityLevel >= 2 ? 6 : _qualityLevel === 1 ? 10 : 16;
+          if (!_obEnt || globalTime - _obEnt.age >= _obTTL) {
+            const _obcw = 126; // 35 * 3.6 = 126
+            if (!_obEnt) { _obEnt = { oc: new OffscreenCanvas(_obcw, _obcw), age: -99 }; _BODY_OC_CACHE.set(_obsk, _obEnt); }
+            const _obcc = _obEnt.oc.getContext('2d');
+            _obcc.imageSmoothingEnabled = true; _obcc.imageSmoothingQuality = 'high';
+            _obcc.clearRect(0, 0, _obcw, _obcw);
+            _obcc.save(); _obcc.translate(63, 63);
+            drawSkinBody(_obcc, 35, p.skin || 'default', globalTime, fl);
+            _obcc.restore();
+            _obEnt.age = globalTime;
+          }
+          ctx.drawImage(_obEnt.oc, -63, -63);
+        }
+      }
+      // ── Eyes overlay (on top of body)
+      {
+        const _eyeSk = p.skin || 'default';
+        let _eyeOC = _EYE_OC_CACHE.get(_eyeSk);
+        if (!_eyeOC) {
+          _eyeOC = new OffscreenCanvas(126, 126);
+          const _ec = _eyeOC.getContext('2d');
+          _ec.imageSmoothingEnabled = true; _ec.imageSmoothingQuality = 'high';
+          _ec.save(); _ec.translate(63, 63);
+          drawSkinEyesOverlay(_ec, 35, _eyeSk, false);
+          _ec.restore();
+          _EYE_OC_CACHE.set(_eyeSk, _eyeOC);
+        }
+        ctx.drawImage(_eyeOC, -63, -63);
+      }
+      // ── Face accessory ────────────────────────────────────────────────────
+      if (pAcc.y && pAcc.y !== 'f_none') drawPlayerFace(ctx, pAcc.y);
+      // ── Hat (centered above head, not rotating with player) ───────────────
+      if (pAcc.s && pAcc.s !== 'h_none') {
+        ctx.save(); ctx.rotate(-p.angle);
+        drawPlayerHat(ctx, pAcc.s, globalTime, 35);
         ctx.restore();
       }
-      ctx.restore(); // undo swAng
+    } finally {
+      ctx.restore(); // end translate + rotate
     }
-
-    // ── Body — PERF: shared OC cache per (skin+flash). All players w/ same skin share one OC.
-    // Re-renders every 6 frames to capture slow animations (fox tail, eye pulse etc.).
-    {
-      const _otherPlayerImage = !fl ? _playerSprite(p.skin || 'default') : null;
-      if (_otherPlayerImage) {
-        _drawCenteredSprite(ctx, _otherPlayerImage, 35 * 3.6);
-      } else {
-        const _obsk = (p.skin || 'default') + (fl ? '_fl' : '_nfl');
-        let _obEnt = _BODY_OC_CACHE.get(_obsk);
-        // PERF: refresh rate scales with quality — at q0/q1 animations barely visible, so refresh less often
-        const _obTTL = _qualityLevel >= 2 ? 6 : _qualityLevel === 1 ? 10 : 16;
-        if (!_obEnt || globalTime - _obEnt.age >= _obTTL) {
-          const _obcw = 126; // 35 * 3.6 = 126
-          if (!_obEnt) { _obEnt = { oc: new OffscreenCanvas(_obcw, _obcw), age: -99 }; _BODY_OC_CACHE.set(_obsk, _obEnt); }
-          const _obcc = _obEnt.oc.getContext('2d');
-          _obcc.imageSmoothingEnabled = true; _obcc.imageSmoothingQuality = 'high';
-          _obcc.clearRect(0, 0, _obcw, _obcw);
-          _obcc.save(); _obcc.translate(63, 63);
-          drawSkinBody(_obcc, 35, p.skin || 'default', globalTime, fl);
-          _obcc.restore();
-          _obEnt.age = globalTime;
-        }
-        ctx.drawImage(_obEnt.oc, -63, -63);
-      }
-    }
-    // ── Eyes overlay (on top of body) — PERF: OC-cached per skin (eyes never animate)
-    // Saves 6 arc draws × N players per frame; only created once per unique skin.
-    {
-      const _eyeSk = p.skin || 'default';
-      let _eyeOC = _EYE_OC_CACHE.get(_eyeSk);
-      if (!_eyeOC) {
-        _eyeOC = new OffscreenCanvas(126, 126);
-        const _ec = _eyeOC.getContext('2d');
-        _ec.imageSmoothingEnabled = true; _ec.imageSmoothingQuality = 'high';
-        _ec.save(); _ec.translate(63, 63);
-        drawSkinEyesOverlay(_ec, 35, _eyeSk, false);
-        _ec.restore();
-        _EYE_OC_CACHE.set(_eyeSk, _eyeOC);
-      }
-      ctx.drawImage(_eyeOC, -63, -63);
-    }
-    // ── Face accessory ────────────────────────────────────────────────────
-    if (pAcc.y && pAcc.y !== 'f_none') drawPlayerFace(ctx, pAcc.y);
-    // ── Hat (centered above head, not rotating with player) ───────────────
-    if (pAcc.s && pAcc.s !== 'h_none') {
-      ctx.save(); ctx.rotate(-p.angle);
-      drawPlayerHat(ctx, pAcc.s, globalTime, 35);
-      ctx.restore();
-    }
-
-    ctx.restore(); // end translate + rotate
 
     // ── Block 2: world-coord overlays (name, HP, chat, arc, kills) ────────
     ctx.save();
-    const _hpRatio = Math.max(0, (p.hp || 0) / (p.maxHp || 100));
-    // Defer name tag to screen-space pass — always on top, pixel-crisp
-    // PERF: pool-based push — reuse pre-allocated object instead of new {} each frame
-    if (_ntPoolIdx < _NT_OBJ_POOL.length) {
-      const _nto = _NT_OBJ_POOL[_ntPoolIdx++];
-      _nto.wx = p.x; _nto.wy = p.y - 44; _nto.name = p.name || '?';
-      _nto.rankId = p.rankId ?? 0; _nto.hpRatio = _hpRatio; _nto.isOwn = false;
-      _pendingNameTags.push(_nto);
-    }
-
-    // Bounty crown above bounty target
-    if (_bountyId && _opSockId === _bountyId) {
-      const _bc_y = p.y - 90;
-      const _bc_pulse = 0.7 + 0.3 * Math.sin(_nowMs * 0.006);
-      ctx.save();
-      ctx.font = `${Math.round(28 * _bc_pulse)}px serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = `rgba(255,215,0,${_bc_pulse})`;
-      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-      ctx.lineWidth = 3;
-      ctx.strokeText('👑', p.x, _bc_y);
-      ctx.fillText('👑', p.x, _bc_y);
-      ctx.restore();
-    }
-
-    // HP bar
-    const hpPct = _hpRatio;
-    const bw = 54, bh = 7, bxBar = p.x - bw / 2, byBar = p.y + 45;
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.beginPath(); ctx.roundRect(bxBar, byBar, bw, bh, 4); ctx.fill();
-    ctx.fillStyle = hpPct > 0.5 ? '#44df22' : hpPct > 0.25 ? '#f5c842' : '#e03333';
-    ctx.beginPath(); ctx.roundRect(bxBar, byBar, bw * hpPct, bh, 4); ctx.fill();
-
-    // Chat bubble
-    if (p._chatMsg && p._chatExpiry && _nowMs < p._chatExpiry) {
-      const fade = Math.min(1, (p._chatExpiry - _nowMs) / 700);
-      const cmx = p.x, cmy = p.y - 86;
-      // BUG FIX: set font BEFORE measureText so width is calculated with the correct font
-      ctx.font = '11px Arial'; ctx.textAlign = 'center';
-      const cw = Math.max(60, ctx.measureText(p._chatMsg).width + 20);
-      ctx.globalAlpha = fade * 0.92;
-      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.roundRect(cmx - cw/2, cmy - 18, cw, 24, 6); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cmx-5, cmy+6); ctx.lineTo(cmx+5, cmy+6); ctx.lineTo(cmx, cmy+14); ctx.closePath(); ctx.fill();
-      ctx.globalAlpha = fade;
-      ctx.fillStyle = '#222';
-      ctx.fillText(p._chatMsg.length > 28 ? p._chatMsg.slice(0,27)+'…' : p._chatMsg, cmx, cmy - 2);
-      ctx.globalAlpha = 1;
-    }
-
-    // Attack arc — matches local player arc size and trail style
-    if (p.isAttacking && (p.weapon === 1 || p.weapon === 2)) {
-      const arcA = Math.PI / 3.0;   // matches local _swingHalfArc()
-      const hitR = p.weapon === 2 ? 132 : 115;
-      // Animate swing: use player id hash for phase offset so players don't sync
-      const _phaseOff = (p.name ? p.name.charCodeAt(0) * 0.37 : 0);
-      const _swingT = globalTime * 0.22 + _phaseOff;
-      const swingOffset = Math.sin(_swingT) * arcA * 0.75;
-      const swingPeak = Math.abs(Math.sin(_swingT)); // 0→1
-
-      ctx.save();
-      ctx.translate(p.x, p.y);
-
-      // Multi-layer fading trail — reduced at lower quality
-      const trailCount = _qualityLevel === 0 ? 2 : _qualityLevel === 1 ? 3 : 5;
-      for (let ti = trailCount; ti >= 1; ti--) {
-        const tOffset = Math.sin(_swingT - ti * 0.13) * arcA * 0.75;
-        const tA = arcA * (0.4 + ti * 0.1);
-        const tAlpha = (trailCount - ti + 1) / trailCount * swingPeak * 0.18;
-        if (tAlpha <= 0.005) continue;
-        ctx.beginPath(); ctx.moveTo(0, 0);
-        ctx.arc(0, 0, hitR * 0.85, p.angle + tOffset - tA * 0.6, p.angle + tOffset + tA * 0.6);
-        ctx.closePath();
-        ctx.fillStyle = p.weapon === 2
-          ? `rgba(100,200,255,${tAlpha})`
-          : `rgba(255,200,80,${tAlpha})`;
-        ctx.fill();
+    try {
+      const _hpRatio = Math.max(0, (p.hp || 0) / (p.maxHp || 100));
+      // Defer name tag to screen-space pass — always on top, pixel-crisp
+      if (_ntPoolIdx < _NT_OBJ_POOL.length) {
+        const _nto = _NT_OBJ_POOL[_ntPoolIdx++];
+        _nto.wx = p.x; _nto.wy = p.y - 44; _nto.name = p.name || '?';
+        _nto.rankId = p.rankId ?? 0; _nto.hpRatio = _hpRatio; _nto.isOwn = false;
+        _pendingNameTags.push(_nto);
       }
 
-      // Main arc sector
-      const mainAngle = p.angle + swingOffset;
-      const baseAlpha = 0.05 + swingPeak * 0.10;
-      ctx.beginPath(); ctx.moveTo(0, 0);
-      ctx.arc(0, 0, hitR, mainAngle - arcA, mainAngle + arcA);
-      ctx.closePath();
-      ctx.fillStyle = p.weapon === 2
-        ? `rgba(100,200,255,${baseAlpha})`
-        : `rgba(255,200,50,${baseAlpha})`;
-      ctx.fill();
+      // Bounty crown above bounty target
+      const _currentBountyId = (typeof _bountyId !== 'undefined') ? _bountyId : null;
+      if (_currentBountyId && _opSockId === _currentBountyId) {
+        const _bc_y = p.y - 90;
+        const _bc_pulse = 0.7 + 0.3 * Math.sin(_nowMs * 0.006);
+        ctx.save();
+        ctx.font = `${Math.round(28 * _bc_pulse)}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = `rgba(255,215,0,${_bc_pulse})`;
+        ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+        ctx.lineWidth = 3;
+        ctx.strokeText('👑', p.x, _bc_y);
+        ctx.fillText('👑', p.x, _bc_y);
+        ctx.restore();
+      }
 
-      // Bright leading edge
-      const edgeAlpha = 0.3 + swingPeak * 0.45;
-      ctx.beginPath();
-      ctx.arc(0, 0, hitR, mainAngle - arcA, mainAngle + arcA);
-      ctx.strokeStyle = p.weapon === 2
-        ? `rgba(140,210,255,${edgeAlpha})`
-        : `rgba(255,220,80,${edgeAlpha})`;
-      ctx.lineWidth = 2.5; ctx.stroke();
+      // HP bar
+      const hpPct = _hpRatio;
+      const bw = 54, bh = 7, bxBar = p.x - bw / 2, byBar = p.y + 45;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.beginPath(); ctx.roundRect(bxBar, byBar, bw, bh, 4); ctx.fill();
+      ctx.fillStyle = hpPct > 0.5 ? '#44df22' : hpPct > 0.25 ? '#f5c842' : '#e03333';
+      ctx.beginPath(); ctx.roundRect(bxBar, byBar, bw * hpPct, bh, 4); ctx.fill();
 
+      // Chat bubble
+      if (p._chatMsg && p._chatExpiry && _nowMs < p._chatExpiry) {
+        const fade = Math.min(1, (p._chatExpiry - _nowMs) / 700);
+        const cmx = p.x, cmy = p.y - 86;
+        ctx.font = '11px Arial'; ctx.textAlign = 'center';
+        const cw = Math.max(60, ctx.measureText(p._chatMsg).width + 20);
+        ctx.globalAlpha = fade * 0.92;
+        ctx.fillStyle = '#fff'; ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(cmx - cw/2, cmy - 18, cw, 24, 6); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cmx-5, cmy+6); ctx.lineTo(cmx+5, cmy+6); ctx.lineTo(cmx, cmy+14); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = '#222';
+        ctx.fillText(p._chatMsg.length > 28 ? p._chatMsg.slice(0,27)+'…' : p._chatMsg, cmx, cmy - 2);
+        ctx.globalAlpha = 1;
+      }
+
+      // Attack arc — matches local player arc size and trail style
+      if (p.isAttacking && (p.weapon === 1 || p.weapon === 2)) {
+        const arcA = Math.PI / 3.0;
+        const hitR = p.weapon === 2 ? 132 : 115;
+        const _phaseOff = (p.name ? p.name.charCodeAt(0) * 0.37 : 0);
+        const _swingT = globalTime * 0.22 + _phaseOff;
+        const swingOffset = Math.sin(_swingT) * arcA * 0.75;
+        const swingPeak = Math.abs(Math.sin(_swingT));
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+
+        const trailCount = _qualityLevel === 0 ? 2 : _qualityLevel === 1 ? 3 : 5;
+        for (let ti = trailCount; ti >= 1; ti--) {
+          const tOffset = Math.sin(_swingT - ti * 0.13) * arcA * 0.75;
+          const tA = arcA * (0.4 + ti * 0.1);
+          const tAlpha = (trailCount - ti + 1) / trailCount * swingPeak * 0.18;
+          if (tAlpha <= 0.005) continue;
+          ctx.beginPath(); ctx.moveTo(0, 0);
+          ctx.arc(0, 0, hitR * 0.85, p.angle + tOffset - tA * 0.6, p.angle + tOffset + tA * 0.6);
+          ctx.closePath();
+          ctx.fillStyle = p.weapon === 2
+            ? `rgba(100,200,255,${tAlpha})`
+            : `rgba(255,200,80,${tAlpha})`;
+          ctx.fill();
+        }
+
+        const mainAngle = p.angle + swingOffset;
+        const baseAlpha = 0.05 + swingPeak * 0.10;
+        ctx.beginPath(); ctx.moveTo(0, 0);
+        ctx.arc(0, 0, hitR, mainAngle - arcA, mainAngle + arcA);
+        ctx.closePath();
+        ctx.fillStyle = p.weapon === 2
+          ? `rgba(100,200,255,${baseAlpha})`
+          : `rgba(255,200,50,${baseAlpha})`;
+        ctx.fill();
+
+        const edgeAlpha = 0.3 + swingPeak * 0.45;
+        ctx.beginPath();
+        ctx.arc(0, 0, hitR, mainAngle - arcA, mainAngle + arcA);
+        ctx.strokeStyle = p.weapon === 2
+          ? `rgba(140,210,255,${edgeAlpha})`
+          : `rgba(255,220,80,${edgeAlpha})`;
+        ctx.lineWidth = 2.5; ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // Kill badge
+      if ((p.kills || 0) > 0) {
+        ctx.font = 'bold 10px Arial'; ctx.fillStyle = '#ffdd00';
+        ctx.fillText(`⚔ ${p.kills}`, p.x, p.y - 82);
+      }
+    } finally {
       ctx.restore();
     }
-
-    // Kill badge
-    if ((p.kills || 0) > 0) {
-      ctx.font = 'bold 10px Arial'; ctx.fillStyle = '#ffdd00';
-      ctx.fillText(`⚔ ${p.kills}`, p.x, p.y - 82);
-    }
-    ctx.restore();
 
     // ── Build preview ghost — matches local player ghost style ────────────
     if (p.weapon >= 3 && p.buildX != null && p.buildY != null) {
       const gbx = p.buildX, gby = p.buildY;
       ctx.save();
-      ctx.globalAlpha = 0.45;
-      // No ctx.filter here — CSS canvas filters force CPU rendering path (5-10× slower).
-      drawBuilding({ x: gbx, y: gby, type: p.weapon, angle: p.angle, life: 0, hp: 100, maxHp: 100, shake: 0, hitTimer: 0 });
-      ctx.globalAlpha = 0.92;
-      const _typeLabel3 = {3:'🗡️ Kazık (Spikes)',4:'💨 Değirmen (Windmill)',5:'⚡ Hız Pedi (Boost)',6:'🪤 Ayı Tuzağı (Bear Trap)',7:'🔫 Taret (Turret)',8:'🚪 Kapı/Duvar (Door)',9:'💚 Şifa Pedi (Heal Pad)',10:'🔥 Kamp Ateşi'}[p.weapon] || '🏗️ Yapı';
-      ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
-      ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
-      ctx.strokeText(_typeLabel3, gbx, gby - 52); ctx.fillStyle = '#aaffaa'; ctx.fillText(_typeLabel3, gbx, gby - 52);
-      ctx.font = '11px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.strokeText(p.name || '?', gbx, gby - 37); ctx.fillText(p.name || '?', gbx, gby - 37);
-      ctx.restore();
+      try {
+        ctx.globalAlpha = 0.45;
+        drawBuilding({ x: gbx, y: gby, type: p.weapon, angle: p.angle, life: 0, hp: 100, maxHp: 100, shake: 0, hitTimer: 0 });
+        ctx.globalAlpha = 0.92;
+        const _typeLabel3 = {3:'🗡️ Kazık (Spikes)',4:'💨 Değirmen (Windmill)',5:'⚡ Hız Pedi (Boost)',6:'🪤 Ayı Tuzağı (Bear Trap)',7:'🔫 Taret (Turret)',8:'🚪 Kapı/Duvar (Door)',9:'💚 Şifa Pedi (Heal Pad)',10:'🔥 Kamp Ateşi'}[p.weapon] || '🏗️ Yapı';
+        ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+        ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 3;
+        ctx.strokeText(_typeLabel3, gbx, gby - 52); ctx.fillStyle = '#aaffaa'; ctx.fillText(_typeLabel3, gbx, gby - 52);
+        ctx.font = '11px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.strokeText(p.name || '?', gbx, gby - 37); ctx.fillText(p.name || '?', gbx, gby - 37);
+      } finally {
+        ctx.restore();
+      }
     }
   } catch (_eSingle) {
     console.warn('drawOtherPlayers single player error:', _eSingle);
