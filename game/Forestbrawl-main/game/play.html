@@ -401,58 +401,57 @@ body>iframe[style]{
 @media(max-width:640px){.inv-icon-canvas{width:28px;height:28px;}}
 @media(max-width:460px){.inv-icon-canvas{width:calc((100vw - 34px) / 10 - 2px);height:calc((100vw - 34px) / 10 - 2px);}}
 
-/* ===== JOYSTICKS — anchored to bottom corners, NO gap ===== */
-/* Only show joysticks on touch devices */
+/* ===== JOYSTICKS — premium mobile gamepad feel ===== */
 .joy-zone{
   position:fixed;z-index:100;pointer-events:auto;
-  width:120px;height:120px;border-radius:50%;
+  width:128px;height:128px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
-  filter:drop-shadow(0 12px 20px rgba(0,0,0,0.35));
+  filter:drop-shadow(0 16px 24px rgba(0,0,0,0.45));
   touch-action:none;
+  user-select:none;-webkit-user-select:none;
 }
-/* Base + stick hidden until activated */
 .joy-base{opacity:0;transition:opacity 0.12s ease;}
 .joy-stick{opacity:0;transition:opacity 0.12s ease;}
 .joy-zone.joy-active .joy-base{opacity:1;}
 .joy-zone.joy-active .joy-stick{opacity:1;}
+.joy-zone::before,
+.joy-zone::after{
+  content:"";position:absolute;border-radius:50%;pointer-events:none;
+}
 .joy-zone::before{
-  content:"";position:absolute;inset:0;border-radius:50%;
-  pointer-events:none;display:none;
+  inset:8px;border:2px solid rgba(255,255,255,0.14);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04),0 0 12px rgba(0,0,0,0.28);
+}
+.joy-zone::after{
+  inset:22px;border:1px solid rgba(255,255,255,0.08);
 }
 @media (hover: hover) and (pointer: fine) {
-  /* Desktop/mouse device — hide joysticks */
   .joy-zone { display: none !important; pointer-events: none !important; }
 }
-#joy-left{
-  left:max(env(safe-area-inset-left,0px),12px);
-  bottom:max(env(safe-area-inset-bottom,0px),14px);
-}
-#joy-right{
-  right:max(env(safe-area-inset-right,0px),12px);
-  bottom:max(env(safe-area-inset-bottom,0px),14px);
-}
+#joy-left{left:max(env(safe-area-inset-left,0px),12px);bottom:max(env(safe-area-inset-bottom,0px),14px);}
+#joy-right{right:max(env(safe-area-inset-right,0px),12px);bottom:max(env(safe-area-inset-bottom,0px),14px);}
 #joy-left .joy-base{
   position:absolute;top:50%;left:50%;width:88px;height:88px;transform:translate(-50%,-50%);
   border-radius:50%;
-  background:radial-gradient(circle at 32% 28%, rgba(140,255,210,0.38), rgba(16,60,48,0.95) 25%, rgba(6,16,15,0.97) 62%, rgba(2,8,8,0.98) 100%);
-  border:2px solid rgba(126,255,193,0.88);
-  box-shadow:inset 0 0 18px rgba(130,255,210,0.16), 0 0 24px rgba(54,183,130,0.24), inset 0 10px 18px rgba(255,255,255,0.06);
+  background:radial-gradient(circle at 34% 28%, rgba(146,255,204,0.48), rgba(18,87,63,0.95) 24%, rgba(6,18,16,0.98) 55%, rgba(2,8,8,1) 100%);
+  border:2px solid rgba(149,255,195,0.9);
+  box-shadow:inset 0 0 18px rgba(142,255,210,0.2), inset 0 10px 18px rgba(255,255,255,0.08), 0 0 24px rgba(51,195,136,0.26);
 }
 #joy-right .joy-base{
   position:absolute;top:50%;left:50%;width:88px;height:88px;transform:translate(-50%,-50%);
   border-radius:50%;
-  background:radial-gradient(circle at 32% 28%, rgba(255,220,138,0.34), rgba(78,45,14,0.94) 24%, rgba(20,12,8,0.98) 62%, rgba(4,4,4,1) 100%);
-  border:2px solid rgba(255,190,92,0.9);
-  box-shadow:inset 0 0 18px rgba(255,176,82,0.12), 0 0 24px rgba(255,150,60,0.18), inset 0 10px 18px rgba(255,255,255,0.05);
+  background:radial-gradient(circle at 34% 28%, rgba(255,207,116,0.42), rgba(124,68,16,0.94) 24%, rgba(19,12,9,0.98) 55%, rgba(4,4,4,1) 100%);
+  border:2px solid rgba(255,196,104,0.9);
+  box-shadow:inset 0 0 18px rgba(255,180,90,0.2), inset 0 10px 18px rgba(255,255,255,0.06), 0 0 22px rgba(255,140,55,0.2);
 }
 #joy-left .joy-stick,
 #joy-right .joy-stick{
   position:absolute;top:50%;left:50%;width:42px;height:42px;transform:translate(-50%,-50%);
   border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.96), rgba(235,239,246,0.9) 22%, rgba(146,173,196,0.8) 62%, rgba(82,96,112,0.84) 100%);
-  border:2px solid rgba(255,255,255,0.7);box-shadow:0 10px 18px rgba(0,0,0,0.42), inset 0 2px 6px rgba(255,255,255,0.55), inset 0 -3px 8px rgba(0,0,0,0.28);
+  background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.98), rgba(240,246,255,0.92) 22%, rgba(145,175,206,0.82) 62%, rgba(78,90,110,0.84) 100%);
+  border:2px solid rgba(255,255,255,0.72);box-shadow:0 10px 18px rgba(0,0,0,0.45), inset 0 2px 6px rgba(255,255,255,0.58), inset 0 -3px 8px rgba(0,0,0,0.28);
 }
-#joy-right .joy-stick{background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.96), rgba(255,212,128,0.92) 28%, rgba(255,148,70,0.82) 65%, rgba(151,92,42,0.8) 100%);border-color:rgba(255,217,153,0.9);}
+#joy-right .joy-stick{background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.98), rgba(255,214,134,0.92) 28%, rgba(255,148,70,0.82) 65%, rgba(149,95,44,0.82) 100%);border-color:rgba(255,221,162,0.88);}
 #dash-btn{
   position:fixed;
   right:max(env(safe-area-inset-right,0px),20px);
@@ -1261,6 +1260,8 @@ body>iframe[style]{
   position:relative;width:42px;height:23px;flex-shrink:0;cursor:pointer;
 }
 .snap-toggle input{opacity:0;width:0;height:0;position:absolute;}
+.snap-toggle input:disabled + .snap-toggle-track,
+.snap-toggle input:disabled ~ .snap-toggle-thumb{cursor:not-allowed;opacity:0.5;}
 .snap-toggle-track{
   position:absolute;inset:0;
   background:rgba(255,255,255,0.12);
@@ -1278,6 +1279,13 @@ body>iframe[style]{
   pointer-events:none;
 }
 .snap-toggle input:checked ~ .snap-toggle-thumb{transform:translateX(19px);}
+#snap-lock-note{
+  display:none; margin-top:6px; padding:6px 8px; border-radius:8px;
+  background:rgba(255,180,0,0.08); border:1px solid rgba(255,180,0,0.24);
+  color:#ffcf5a; font-size:10px; font-weight:900; letter-spacing:0.35px;
+  text-transform:uppercase;
+}
+#snap-lock-note.visible{display:block;}
 
 /* ===== KILL FLASH ===== */
 #kill-flash{display:none !important;}
@@ -1579,6 +1587,7 @@ function drawSkinEyesOverlay(c, R, sk, fl) {
       <div class="snap-toggle-thumb"></div>
     </label>
   </div>
+  <div id="snap-lock-note">🔒 Kenetlenme 30 saniye boyunca kilitli</div>
   <div class="snap-row">
     <div class="snap-row-label">
       🗺️ Mini Harita Izgarası
@@ -5010,25 +5019,73 @@ if (appleBtn) {
 // ============================================================
 // BUILDING PLACEMENT
 // ============================================================
-// ── BUILD SNAP SETTING (localStorage: fb_build_snap, default true) ──
-let _buildSnapEnabled = (function(){
+// ── BUILD SNAP SETTING (localStorage: fb_build_snap, default off + temporary lock) ──
+const _snapLockMs = 30000;
+let _buildSnapEnabled = false;
+let _buildSnapLocked = false;
+
+function _syncSnapLockState() {
   try {
-    const v = localStorage.getItem('fb_build_snap');
-    return v === null ? true : v === 'true';
+    const lockUntil = Number(localStorage.getItem('fb_build_snap_lock_until') || 0);
+    const now = Date.now();
+    _buildSnapLocked = lockUntil > now;
+    if (_buildSnapLocked) {
+      const remaining = Math.max(0, lockUntil - now);
+      const note = document.getElementById('snap-lock-note');
+      if (note) {
+        note.classList.add('visible');
+        note.textContent = `🔒 Kenetlenme ${Math.ceil(remaining / 1000)} saniye boyunca kilitli`;
+      }
+    } else {
+      localStorage.removeItem('fb_build_snap_lock_until');
+      const note = document.getElementById('snap-lock-note');
+      if (note) note.classList.remove('visible');
+    }
   } catch {
-    return true;
+    _buildSnapLocked = false;
   }
-})();
+}
+
+function _lockSnapSettingsForSession() {
+  const lockUntil = Date.now() + _snapLockMs;
+  try { localStorage.setItem('fb_build_snap_lock_until', String(lockUntil)); } catch {}
+  _buildSnapLocked = true;
+  _syncSnapLockState();
+}
 
 function _initSnapSettingsUI() {
+  try {
+    const v = localStorage.getItem('fb_build_snap');
+    _buildSnapEnabled = v === 'true';
+  } catch {
+    _buildSnapEnabled = false;
+  }
   const el = document.getElementById('snap-toggle-input');
-  if (el) el.checked = _buildSnapEnabled;
+  if (el) {
+    el.checked = _buildSnapEnabled;
+    el.disabled = _buildSnapLocked;
+  }
+  _syncSnapLockState();
+  const note = document.getElementById('snap-lock-note');
+  if (note && _buildSnapLocked) note.classList.add('visible');
+  if (el) el.disabled = _buildSnapLocked;
 }
 _initSnapSettingsUI();
 
 function _onSnapToggle(checked) {
+  if (_buildSnapLocked) {
+    const el = document.getElementById('snap-toggle-input');
+    if (el) el.checked = false;
+    if (typeof showToast === 'function') showToast('🔒 Kenetlenme şu an kilitli. 30 saniye sonra açılacak.', 1800, '#ffbb33');
+    return;
+  }
   _buildSnapEnabled = checked;
   localStorage.setItem('fb_build_snap', checked ? 'true' : 'false');
+  if (checked) {
+    _lockSnapSettingsForSession();
+  }
+  const el = document.getElementById('snap-toggle-input');
+  if (el) el.disabled = _buildSnapLocked;
   floatingTexts.push({
     x: player.x,
     y: player.y - 50,
@@ -5188,8 +5245,20 @@ function _toggleSnapSettings(e) {
   const isOpening = !panel.classList.contains('open');
   panel.classList.toggle('open');
   if (isOpening) {
+    _syncSnapLockState();
     const snapInput = document.getElementById('snap-toggle-input');
-    if (snapInput) snapInput.checked = (typeof _buildSnapEnabled !== 'undefined' ? _buildSnapEnabled : (localStorage.getItem('fb_build_snap') !== 'false'));
+    if (snapInput) {
+      snapInput.checked = (typeof _buildSnapEnabled !== 'undefined' ? _buildSnapEnabled : (localStorage.getItem('fb_build_snap') === 'true'));
+      snapInput.disabled = _buildSnapLocked;
+    }
+    const lockNote = document.getElementById('snap-lock-note');
+    if (lockNote) {
+      lockNote.classList.toggle('visible', _buildSnapLocked);
+      if (_buildSnapLocked) {
+        const remaining = Math.max(0, Number(localStorage.getItem('fb_build_snap_lock_until') || 0) - Date.now());
+        lockNote.textContent = `🔒 Kenetlenme ${Math.ceil(remaining / 1000)} saniye boyunca kilitli`;
+      }
+    }
     const gridInput = document.getElementById('grid-toggle-input');
     if (gridInput) gridInput.checked = localStorage.getItem('fb_grid_show') !== 'false';
     const sfxInput = document.getElementById('sfx-toggle-input');
