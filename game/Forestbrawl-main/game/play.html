@@ -960,7 +960,11 @@ body>iframe[style]{
   border:2px solid rgba(255,215,0,0.65);border-radius:22px;
   padding:20px 18px 16px;
   flex-direction:column;align-items:center;gap:12px;
-  width:min(420px,calc(100vw - 28px));
+  width:min(420px,calc(100vw - 16px));
+  max-width:calc(100vw - 16px);
+  max-height:calc(100vh - 20px);
+  overflow:auto;
+  box-sizing:border-box;
   box-shadow:0 8px 60px rgba(0,0,0,0.9),0 0 40px rgba(255,215,0,0.15);
   animation:upgPanelIn 0.22s ease-out;
 }
@@ -1012,7 +1016,9 @@ body>iframe[style]{
 /* ===== BUILD UPGRADE PANEL ===== */
 #build-upg-panel{
   position:fixed;bottom:-400px;left:50%;transform:translateX(-50%);
-  z-index:600;width:min(390px,96vw);
+  z-index:600;width:min(390px,calc(100vw - 16px));
+  max-width:calc(100vw - 16px);
+  max-height:calc(100vh - 20px);
   pointer-events:none;
   /* Use ease-out (not spring/overshoot) — spring's cubic-bezier overshoot causes
      iOS Safari to briefly recalculate the visual viewport, firing visualViewport.resize
@@ -1026,9 +1032,12 @@ body>iframe[style]{
 #build-upg-panel.bup-open{bottom:148px;opacity:1;pointer-events:all;}
 @media(max-width:480px){
   #build-upg-panel.bup-open{bottom:max(calc(env(safe-area-inset-bottom,0px) + 142px),142px);}
-  #build-upg-panel{width:min(360px,98vw);}
+  #build-upg-panel{width:min(360px,calc(100vw - 12px));}
   #bup-body{padding:8px 10px 10px;}
   .bup-btn{padding:9px 3px;font-size:10px;}
+  #bup-header{padding:11px 12px 10px;}
+  #bup-title{font-size:13px;}
+  #bup-subtitle{font-size:9px;}
 }
 @media(max-height:480px){
   #build-upg-panel.bup-open{bottom:max(calc(env(safe-area-inset-bottom,0px) + 88px),88px);}
@@ -1043,7 +1052,8 @@ body>iframe[style]{
 }
 .bup-inner{
   background:linear-gradient(160deg,rgba(6,16,6,0.98) 0%,rgba(4,10,20,0.98) 100%);
-  border-radius:20px;padding:0;overflow:hidden;
+  border-radius:20px;padding:0;overflow:auto;
+  max-height:calc(100vh - 28px);
   box-shadow:0 10px 56px rgba(0,0,0,0.85),0 0 0 2px var(--bup-color,#4db832),inset 0 1px 0 rgba(255,255,255,0.06);
 }
 #bup-header{
@@ -1051,6 +1061,7 @@ body>iframe[style]{
   background:linear-gradient(135deg,var(--bup-dark,#1a3a0a),var(--bup-mid,#2d5a18));
   display:flex;align-items:center;gap:11px;
   border-bottom:1px solid rgba(255,255,255,0.07);
+  position:relative;
 }
 #bup-type-icon{font-size:30px;line-height:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.6));}
 #bup-header-info{flex:1;min-width:0;}
@@ -1060,6 +1071,7 @@ body>iframe[style]{
   background:rgba(255,60,60,0.18);border:1px solid rgba(255,100,100,0.35);
   border-radius:8px;color:#ff9999;font-size:13px;cursor:pointer;
   padding:4px 10px;font-weight:900;transition:all .15s;line-height:1.4;flex-shrink:0;
+  min-width:32px;min-height:32px;display:inline-flex;align-items:center;justify-content:center;
 }
 #bup-close-btn:hover{background:rgba(255,60,60,0.38);color:#fff;}
 #bup-body{padding:11px 13px 12px;}
@@ -2001,7 +2013,7 @@ const _GAME_MODE = urlParams.get('mode') === 'offline' ? 'offline' : 'online';
 
 const _isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth < 900;
 const _lowPowerDevice = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4) || /Android\s+[1-7]|iPhone|iPad/i.test(navigator.userAgent);
-let ZOOM = _isMobile ? 0.38 : 0.50;
+let ZOOM = _isMobile ? 0.64 : 0.58;
 let camX = 0, camY = 0, _camReady = false;
 
 // ── Large Taming.io / Sploop.io-inspired world — 4 biome families only ───────
@@ -12633,10 +12645,10 @@ function update(timestamp = 0) {
     camY += (player.y - canvas.height/2 - camY) * _camFactor;
   }
 
-  // ── PC & Mobil Kamera Yakınlığı (mobilde biraz daha uzakta, daha stabil ve daha az stutter) ──
-  const _baseTarget = _onTrain ? (_isMobile ? 0.52 : 0.56) : (_isMobile ? 0.80 : 0.74);
-  const _zoomTarget = Math.max(0.72, Math.min(1.00, _baseTarget * _userZoomMultiplier));
-  ZOOM += (_zoomTarget - ZOOM) * 0.09;
+  // ── PC & Mobil Kamera Yakınlığı (başlangıçta kendi kendine yakınlaşma olmadan daha dengeli çerçeve) ──
+  const _baseTarget = _onTrain ? (_isMobile ? 0.58 : 0.62) : (_isMobile ? 0.64 : 0.60);
+  const _zoomTarget = Math.max(0.60, Math.min(0.90, _baseTarget * _userZoomMultiplier));
+  ZOOM += (_zoomTarget - ZOOM) * 0.07;
 
   // ── Kamera Sınır Kelepçesi: Ekran dışı / boşluk asla görünmez ──
   const _hvw = (canvas.width / 2) / (ZOOM || 0.78);
